@@ -56,4 +56,12 @@ void HAPServer::processRequest(Client & client)
 	client.stop();
 }
 
+HAPServer::~HAPServer()
+{
+	for (int i = 0; i < _accessoryCount; i++) {
+		delete _accessories[i];
+	}
+
+	delete[] _accessories;
+}
 

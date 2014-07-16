@@ -17,6 +17,7 @@ class HAPBase {
 public:
 	HAPBase(unsigned char instanceId);
 	virtual int sendToClient(Client & client) = 0;
+	virtual ~HAPBase() = 0;
 protected: 
 	unsigned char _instanceId;
 };

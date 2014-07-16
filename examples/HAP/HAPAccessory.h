@@ -9,6 +9,7 @@ class HAPAccessory : public HAPBase
 public:
 	HAPAccessory(unsigned char instanceId, HAPService ** const services, unsigned char servicesCount);
 	virtual int sendToClient(Client & client);
+	~HAPAccessory();
 private:
 	HAPService ** const _services;
 	unsigned char _servicesCount;

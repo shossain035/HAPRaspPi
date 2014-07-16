@@ -23,3 +23,12 @@ int HAPAccessory::sendToClient(Client & client)
 
 	return 0;
 }
+
+HAPAccessory::~HAPAccessory()
+{
+	for (int i = 0; i < _servicesCount; i++) {
+		delete _services[i];
+	}
+
+	delete[] _services;
+}

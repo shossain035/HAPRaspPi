@@ -31,3 +31,12 @@ int HAPService::sendToClient(Client & client)
 
 	return HAP::BAD_REQUEST;
 }
+
+HAPService::~HAPService()
+{
+	for (int i = 0; i < _characteristicsCount; i++) {
+		delete _characteristics[i];
+	}
+
+	delete[] _characteristics;
+}

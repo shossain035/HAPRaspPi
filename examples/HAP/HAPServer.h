@@ -8,6 +8,7 @@ class HAPServer
 public:
 	HAPServer();
 	void processRequest(Client & client);
+	~HAPServer();
 private:
 	HAPAccessory ** _accessories;
 	int _accessoryCount;
