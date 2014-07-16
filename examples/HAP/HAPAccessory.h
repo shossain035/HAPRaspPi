@@ -1,14 +1,14 @@
 #ifndef _HAPACCESSORY_H_
 #define _HAPACCESSORY_H_
 
-#include <HAPService.h>
+#include "HAPService.h"
 
 
 class HAPAccessory : public HAPBase
 {
 public:
 	HAPAccessory(unsigned char instanceId, HAPService ** const services, unsigned char servicesCount);
-	virtual int sendToClient(Client & client);
+	virtual int sendToClient(HAPClient & client);
 	~HAPAccessory();
 private:
 	HAPService ** const _services;

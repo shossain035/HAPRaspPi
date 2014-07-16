@@ -1,13 +1,13 @@
 #ifndef _HAPSERVER_H_
 #define _HAPSERVER_H_
 
-#include <HAPAccessory.h>
+#include "HAPAccessory.h"
 
 class HAPServer
 {
 public:
 	HAPServer();
-	void processRequest(Client & client);
+	void processRequest(HAPClient& client);
 	~HAPServer();
 private:
 	HAPAccessory ** _accessories;

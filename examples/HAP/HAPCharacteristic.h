@@ -1,7 +1,7 @@
 #ifndef _HAPCHARACTERISTICS_H_
 #define _HAPCHARACTERISTICS_H_
 
-#include <HAPBase.h>
+#include "HAPBase.h"
 
 union HAPCharacteristicValue 
 {
@@ -28,8 +28,8 @@ public:
 	HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value);
 	HAPCharacteristic(unsigned char instanceId, const char * const type, int value);
 
-	virtual int sendToClient(Client & client);
-	~HAPCharacteristic() { delete _value; }
+	virtual int sendToClient(HAPClient & client);
+	~HAPCharacteristic();
 private:
 	//void setValue(HAPCharacteristicValue * const value);
 	const char * const _type;

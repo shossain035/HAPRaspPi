@@ -1,5 +1,4 @@
-#include <HAPServer.h>
-#include <SPI.h>
+#include "HAPServer.h"
 
 HAPServer::HAPServer()
 {
@@ -22,18 +21,8 @@ HAPServer::HAPServer()
 	_accessories[0] = new HAPAccessory(1, services, 2);
 }
 
-void HAPServer::processRequest(Client & client)
+void HAPServer::processRequest(HAPClient & client)
 {
-	Serial.println("processing new client");
-	/*
-	while (client.connected()) {
-		if (client.available()) {
-			char c = client.read();
-			Serial.print(c);
-		}
-	}
-	Serial.println();
-	*/
 	client.println("HTTP/1.1 200 OK");
 	client.println("Content-Type: application/hap+json");
 	//client.println("Connnection: close");
@@ -51,9 +40,6 @@ void HAPServer::processRequest(Client & client)
 
 	client.println("]}");
 
-	delay(1);
-	// close the connection:
-	client.stop();
 }
 
 HAPServer::~HAPServer()

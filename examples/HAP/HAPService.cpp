@@ -1,4 +1,4 @@
-#include <HAPService.h>
+#include "HAPService.h"
 
 
 const char * HAPServiceTypes::accessoryInformation = "accessory-information";
@@ -12,7 +12,7 @@ HAPService::HAPService(unsigned char instanceId, const char * const type, HAPCha
 {
 }
 
-int HAPService::sendToClient(Client & client)
+int HAPService::sendToClient(HAPClient & client)
 {
 	client.print("{\"instanceID\":");
 	client.print(_instanceId);

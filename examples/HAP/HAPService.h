@@ -1,7 +1,7 @@
 #ifndef _HAPSERVICE_H_
 #define _HAPSERVICE_H_
 
-#include <HAPCharacteristic.h>
+#include "HAPCharacteristic.h"
 
 class HAPServiceTypes
 {
@@ -15,7 +15,7 @@ class HAPService : public HAPBase
 {
 public:
 	HAPService(unsigned char instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount);
-	virtual int sendToClient(Client & client);
+	virtual int sendToClient(HAPClient & client);
 	~HAPService();
 private:
 	const char * const _type;

@@ -1,4 +1,4 @@
-#include <HAPCharacteristic.h>
+#include "HAPCharacteristic.h"
 
 
 const char * HAPCharacteristicTypes::name = "name";
@@ -21,7 +21,7 @@ HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * cons
 	_value->i = value;
 }
 
-int HAPCharacteristic::sendToClient(Client & client)
+int HAPCharacteristic::sendToClient(HAPClient & client)
 {
 	//todo: properties and meta data
 	client.print("{\"instanceID\":");
@@ -46,4 +46,9 @@ int HAPCharacteristic::sendToClient(Client & client)
 	client.print("}");
 
 	return 0;
+}
+
+HAPCharacteristic::~HAPCharacteristic()
+{ 
+	delete _value; 
 }
