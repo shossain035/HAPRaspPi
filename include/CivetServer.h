@@ -206,6 +206,7 @@ public:
                          std::string &dst, size_t occurrence=0);
 
 
+    static char * getBody(struct mg_connection *conn);
     /**
      * urlDecode(const std::string &, std::string &, bool)
      *

@@ -64,6 +64,21 @@ private:
         return true;
     }
 public:
+    bool handlePut(CivetServer *server, struct mg_connection *conn) {
+        mg_printf(conn, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
+        mg_printf(conn, "<html><body>");
+        mg_printf(conn, "<h2>This is the A handler for PUT !</h2>");
+        char * body = CivetServer::getBody(conn);
+
+        if (body!=NULL) {
+            mg_printf(conn, "<p>body set to %s</p>", body);
+        } else {
+            mg_printf(conn, "<p>body not set</p>");
+        }
+        mg_printf(conn, "</body></html>\n");
+	return true;
+    }
+
     bool handleGet(CivetServer *server, struct mg_connection *conn) {
         return handleAll("GET", server, conn);
     }
@@ -105,7 +120,7 @@ public:
 int main(int argc, char *argv[])
 {
 
-    const char * options[] = { "document_root", DOCUMENT_ROOT,
+    const char * options[] = { //"document_root", DOCUMENT_ROOT,
                                "listening_ports", PORT, 0
                              };
 

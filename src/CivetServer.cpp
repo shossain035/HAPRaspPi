@@ -178,34 +178,18 @@ CivetServer::getParam(struct mg_connection *conn, const char *name,
     assert(me != NULL);
     mg_lock_context(me->context);
     CivetConnection &conobj = me->connections[conn];
-    mg_lock_connection(conn);
     mg_unlock_context(me->context);
-
+    
     if (conobj.postData != NULL) {
         formParams = conobj.postData;
     } else {
-        const char * con_len_str = mg_get_header(conn, "Content-Length");
-        if (con_len_str) {
-            unsigned long con_len = atoi(con_len_str);
-            if (con_len>0) {
-                // Add one extra character: in case the post-data is a text, it is required as 0-termination.
-                // Do not increment con_len, since the 0 terminating is not part of the content (text or binary).
-                conobj.postData = (char*)malloc(con_len + 1);
-                if (conobj.postData != NULL) {
-                    // malloc may fail for huge requests
-                    mg_read(conn, conobj.postData, con_len);
-                    conobj.postData[con_len] = 0;
-                    formParams = conobj.postData;
-                    conobj.postDataLen = con_len;
-                }
-            }
-        }
+        formParams = getBody(conn);
     }
     if (formParams == NULL) {
         // get requests do store html <form> field values in the http query_string
         formParams = ri->query_string;
     }
-    mg_unlock_connection(conn);
+    
 
     if (formParams != NULL) {
         return getParam(formParams, strlen(formParams), name, dst, occurrence);
@@ -251,6 +235,38 @@ CivetServer::getParam(const char *data, size_t data_len, const char *name,
     return false;
 }
 
+char * 
+CivetServer::getBody(struct mg_connection *conn)
+{
+    struct mg_request_info *ri = mg_get_request_info(conn);
+    assert(ri != NULL);
+    CivetServer *me = (CivetServer*) (ri->user_data);
+    assert(me != NULL);
+    mg_lock_context(me->context);
+    CivetConnection &conobj = me->connections[conn];
+    mg_lock_connection(conn);
+    mg_unlock_context(me->context);
+    
+    const char * con_len_str = mg_get_header(conn, "Content-Length");
+    if (con_len_str) {
+        unsigned long con_len = atoi(con_len_str);
+        if (con_len>0) {
+            // Add one extra character: in case the post-data is a text, it is required as 0-termination.
+            // Do not increment con_len, since the 0 terminating is not part of the content (text or binary).
+            conobj.postData = (char*)malloc(con_len + 1);
+            if (conobj.postData != NULL) {
+                // malloc may fail for huge requests
+                mg_read(conn, conobj.postData, con_len);
+                conobj.postData[con_len] = 0;
+                conobj.postDataLen = con_len;
+            }
+        }
+    }
+
+    mg_unlock_connection(conn);
+
+    return conobj.postData;
+}
 void
 CivetServer::urlEncode(const char *src, std::string &dst, bool append)
 {

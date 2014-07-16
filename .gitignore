@@ -235,3 +235,5 @@ requests.db
 ##########################
 tags
 
+
+examples/embedded_cpp/embedded_cpp
