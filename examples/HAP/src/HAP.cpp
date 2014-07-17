@@ -7,6 +7,7 @@
 
 #include "CivetServer.h"
 #include "HAPServer.h"
+#include <assert.h>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -17,6 +18,7 @@
 #define PORT "8081"
 #define ACCESSORIES_URI "/accessories$"
 #define CHARACTERISTIC_URI "/accessories/**/services/**/characteristics/**$"
+                          
 #define EXIT_URI "/exit"
 bool exitNow = false;
 
@@ -36,12 +38,63 @@ public:
 
 	bool handleGet(CivetServer *server, struct mg_connection *conn) {
 		HAPClient client(conn);
-		
+		printf("GET accessories\n");
 		_hapServer.getAccessories(client);
 		
 		return true;
 	}
 };
+
+class CharacteristicHandler : public BaseHandler
+{
+private:
+	bool parseUri(struct mg_connection* conn, 
+					int& accessoryId, int& serviceId, int& characteristicId) {
+		
+		struct mg_request_info *ri = mg_get_request_info(conn);
+		assert(ri != NULL);
+		
+		if (3 != sscanf(ri->uri, "/accessories/%d/services/%d/characteristics/%d",
+			&accessoryId, &serviceId, &characteristicId)) {
+			
+			HAPClient client(conn);
+			client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+			return false;
+		}
+
+		return true;
+	}
+public:
+	CharacteristicHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
+
+	bool handleGet(CivetServer* server, struct mg_connection* conn) {
+		printf("GET characteristic\n");
+		int accessoryId, serviceId, characteristicId;
+		if (!parseUri(conn, accessoryId, serviceId, characteristicId)) {
+			return true;
+		}
+
+		HAPClient client(conn);
+		_hapServer.getCharacteristic(client, accessoryId, serviceId, characteristicId);
+		
+		return true;
+	}
+	bool handlePut(CivetServer* server, struct mg_connection* conn) {
+		printf("PUT characteristic\n");
+		int accessoryId, serviceId, characteristicId;
+		if (!parseUri(conn, accessoryId, serviceId, characteristicId)) {
+			return true;
+		}
+			
+		char * body = CivetServer::getBody(conn);
+
+		HAPClient client(conn);
+		_hapServer.putCharacteristic(client, accessoryId, serviceId, characteristicId, body);
+
+		return true;
+	}
+};
+
 
 class ExitHandler : public CivetHandler
 {
@@ -54,51 +107,6 @@ public:
 	}
 };
 
-class AHandler : public BaseHandler
-{
-private:
-	bool handleAll(const char* method, CivetServer* server, struct mg_connection* conn) {
-		std::string s = "";
-		mg_printf(conn, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
-		mg_printf(conn, "<html><body>");
-		mg_printf(conn, "<h2>This is the A handler for \"%s\" !</h2>", method);
-		if (CivetServer::getParam(conn, "param", s)) {
-			mg_printf(conn, "<p>param set to %s</p>", s.c_str());
-		}
-		else {
-			mg_printf(conn, "<p>param not set</p>");
-		}
-		mg_printf(conn, "</body></html>\n");
-		return true;
-	}
-public:
-	AHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
-
-	bool handlePut(CivetServer* server, struct mg_connection* conn) {
-		mg_printf(conn, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
-		mg_printf(conn, "<html><body>");
-		mg_printf(conn, "<h2>This is the A handler for PUT !</h2>");
-		char * body = CivetServer::getBody(conn);
-
-		if (body != NULL) {
-			mg_printf(conn, "<p>body set to %s</p>", body);
-		}
-		else {
-			mg_printf(conn, "<p>body not set</p>");
-		}
-		mg_printf(conn, "</body></html>\n");
-		return true;
-	}
-
-	bool handleGet(CivetServer* server, struct mg_connection* conn) {
-		return handleAll("GET", server, conn);
-	}
-	bool handlePost(CivetServer* server, struct mg_connection* conn) {
-		return handleAll("POST", server, conn);
-	}
-};
-
-
 int main(int argc, char *argv[])
 {
 
@@ -110,9 +118,10 @@ int main(int argc, char *argv[])
 	HAPServer hapServer;
 	
 	server.addHandler(ACCESSORIES_URI, new AccessoriesHandler(hapServer));
-	server.addHandler(EXIT_URI, new ExitHandler());
-	server.addHandler("/a", new AHandler(hapServer));
+	server.addHandler(CHARACTERISTIC_URI, new CharacteristicHandler(hapServer));
 
+	server.addHandler(EXIT_URI, new ExitHandler());
+	
 	while (!exitNow) {
 #ifdef _WIN32
 		Sleep(1000);

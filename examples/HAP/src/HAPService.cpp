@@ -32,6 +32,16 @@ int HAPService::sendToClient(HAPClient & client)
 	return HAP::BAD_REQUEST;
 }
 
+HAPCharacteristic* HAPService::characteristicForId(int characteristicId)
+{
+	if (!HAPBase::withinInclusiveRange(characteristicId, 1, (int)_characteristicsCount)) {
+		printf("failed char\n");
+		return NULL;
+	}
+
+	return _characteristics[characteristicId - 1];
+}
+
 HAPService::~HAPService()
 {
 	for (int i = 0; i < _characteristicsCount; i++) {

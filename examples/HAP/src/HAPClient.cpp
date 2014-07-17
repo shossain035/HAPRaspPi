@@ -11,7 +11,7 @@ void HAPClient::print(int i)
 
 void HAPClient::print(const char * string) 
 {
-	mg_printf(_conn, string);
+	mg_printf(_conn, "%s", string);
 }
 
 void HAPClient::println(const char * string) 
@@ -32,6 +32,12 @@ void HAPClient::println()
 	print("\r\n");
 }
 
+
+void HAPClient::sendHeaderWithoutBody(HAP::HAPStatus status)
+{
+	sendHeader(status, 0);
+	println();
+}
 
 void HAPClient::sendHeader(HAP::HAPStatus status, int contentLength)
 {

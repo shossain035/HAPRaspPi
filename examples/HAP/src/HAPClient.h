@@ -23,6 +23,7 @@ public:
 	void println();
 
 	void sendHeader(HAP::HAPStatus status, int contentLength);
+	void sendHeaderWithoutBody(HAP::HAPStatus status);
 private:
 	struct mg_connection* _conn;
 };

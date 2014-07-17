@@ -10,6 +10,8 @@ public:
 	HAPAccessory(unsigned char instanceId, HAPService ** const services, unsigned char servicesCount);
 	virtual int sendToClient(HAPClient& client);
 	~HAPAccessory();
+
+	HAPService* serviceForId(int serviceId);
 private:
 	HAPService ** const _services;
 	unsigned char _servicesCount;

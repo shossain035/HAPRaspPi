@@ -37,6 +37,58 @@ void HAPServer::getAccessories(HAPClient & client)
 	client.println("]}");
 }
 
+HAPCharacteristic* HAPServer::getCharacteristic(
+	int accessoryId, int serviceId, int characteristicId)
+{
+	if (!HAPBase::withinInclusiveRange(accessoryId, 1, _accessoryCount)) {
+		return NULL;
+	}
+
+	HAPAccessory* accessory = _accessories[accessoryId - 1];
+	HAPService* service = accessory->serviceForId(serviceId);
+
+	if (NULL == service) {
+		return NULL;
+	}
+
+	HAPCharacteristic* characteristic = service->characteristicForId(characteristicId);
+
+	if (NULL == characteristic) {
+		return NULL;
+	}
+	
+	return characteristic;
+}
+
+void HAPServer::getCharacteristic(HAPClient& client,
+	int accessoryId, int serviceId, int characteristicId)
+{
+	HAPCharacteristic* characteristic 
+		= getCharacteristic(accessoryId, serviceId, characteristicId);
+
+	if (characteristic == NULL) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+	//todo: length programetically
+	client.sendHeader(HAP::SUCCESS, 106);
+	characteristic->sendToClient(client);
+}
+
+void HAPServer::putCharacteristic(HAPClient& client,
+	int accessoryId, int serviceId, int characteristicId, const char* body)
+{
+	HAPCharacteristic* characteristic
+		= getCharacteristic(accessoryId, serviceId, characteristicId);
+
+	if (characteristic == NULL) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+	
+	characteristic->updateValueWithJSON(client, body);
+}
+
 HAPServer::~HAPServer()
 {
 	for (int i = 0; i < _accessoryCount; i++) {

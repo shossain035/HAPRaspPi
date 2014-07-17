@@ -17,6 +17,10 @@ public:
 	HAPService(unsigned char instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount);
 	virtual int sendToClient(HAPClient & client);
 	~HAPService();
+
+	int characteristicsCount();
+	HAPCharacteristic* characteristicForId(int characteristicId);
+
 private:
 	const char * const _type;
 	HAPCharacteristic ** const _characteristics;

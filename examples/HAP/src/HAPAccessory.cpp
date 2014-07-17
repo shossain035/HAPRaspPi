@@ -24,6 +24,16 @@ int HAPAccessory::sendToClient(HAPClient & client)
 	return 0;
 }
 
+HAPService* HAPAccessory::serviceForId(int serviceId)
+{
+	if (!HAPBase::withinInclusiveRange(serviceId, 1, (int)_servicesCount)) {
+		printf("failed service\n");
+		return NULL;
+	}
+
+	return _services[serviceId-1];
+}
+
 HAPAccessory::~HAPAccessory()
 {
 	for (int i = 0; i < _servicesCount; i++) {

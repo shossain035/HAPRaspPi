@@ -1,4 +1,5 @@
 #include "HAPCharacteristic.h"
+#include <string.h>
 
 
 const char * HAPCharacteristicTypes::name = "name";
@@ -45,6 +46,36 @@ int HAPCharacteristic::sendToClient(HAPClient & client)
 	client.print("}");
 
 	return 0;
+}
+
+//todo: a lot!
+void HAPCharacteristic::updateValueWithJSON(HAPClient& client, const char* string)
+{
+	if (string == NULL) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+	
+	const char* valueTagString = strstr(string, "value");
+	if (valueTagString == NULL) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+
+	const char* valueStringBegin = strchr(string, ':');
+	if (valueTagString == NULL) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+
+	if (1 != sscanf(valueStringBegin, ":%d", &_value->i)) {
+		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
+		return;
+	}
+
+	printf("characteristic updated to :%d\n", _value->i);
+	client.sendHeader(HAP::SUCCESS, 106);
+	sendToClient(client);
 }
 
 HAPCharacteristic::~HAPCharacteristic()

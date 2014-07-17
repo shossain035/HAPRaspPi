@@ -29,9 +29,10 @@ public:
 	HAPCharacteristic(unsigned char instanceId, const char * const type, int value);
 
 	virtual int sendToClient(HAPClient& client);
+	void updateValueWithJSON(HAPClient& client, const char* string);
+
 	~HAPCharacteristic();
 private:
-	//void setValue(HAPCharacteristicValue * const value);
 	const char * const _type;
 	HAPCharacteristicValue * const _value;
 };
