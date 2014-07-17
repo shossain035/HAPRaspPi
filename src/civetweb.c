@@ -732,7 +732,7 @@ static struct mg_option config_options[] = {
 #else
     "index.xhtml,index.html,index.htm,index.cgi,index.shtml,index.php"},
 #endif
-    {"enable_keep_alive",           CONFIG_TYPE_BOOLEAN,       "no"},
+    {"enable_keep_alive",           CONFIG_TYPE_BOOLEAN,       "yes"},
     {"access_control_list",         12345,                     NULL},
     {"extra_mime_types",            12345,                     NULL},
     {"listening_ports",             12345,                     "8080"},
@@ -6864,19 +6864,16 @@ static void get_system_name(char **sysName)
 {
 #if defined(_WIN32)
 #if !defined(__SYMBIAN32__)
-    char name[128];
-    DWORD dwVersion = 0;
-    DWORD dwMajorVersion = 0;
-    DWORD dwMinorVersion = 0;
-    DWORD dwBuild = 0;
+	char name[128];
+	/*
+	OSVERSIONINFO osvi;
+	
+	ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 
-    dwVersion = GetVersion();
-
-    dwMajorVersion = (DWORD)(LOBYTE(LOWORD(dwVersion)));
-    dwMinorVersion = (DWORD)(HIBYTE(LOWORD(dwVersion)));
-    dwBuild = ((dwVersion < 0x80000000) ? (DWORD)(HIWORD(dwVersion)) : 0);
-
-    sprintf(name, "Windows %d.%d", dwMajorVersion, dwMinorVersion);
+	GetVersionEx(&osvi);
+	*/
+    sprintf(name, "Windows %d.%d", 7, 1);
     *sysName = mg_strdup(name);
 #else
     *sysName = mg_strdup("Symbian");
