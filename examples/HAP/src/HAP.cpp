@@ -15,33 +15,30 @@
 #endif
 
 #define PORT "8081"
-#define EXAMPLE_URI "/example"
+#define ACCESSORIES_URI "/accessories$"
+#define CHARACTERISTIC_URI "/accessories/**/services/**/characteristics/**$"
 #define EXIT_URI "/exit"
 bool exitNow = false;
+
 
 class BaseHandler : public CivetHandler
 {
 public:
-	BaseHandler(const HAPServer& hapServer) : _hapServer(hapServer) {}
+	BaseHandler(HAPServer& hapServer) : _hapServer(hapServer) {}
 protected:
-	const HAPServer& _hapServer;
+	HAPServer& _hapServer;
 };
 
-class ExampleHandler : public BaseHandler
+class AccessoriesHandler : public BaseHandler
 {
 public:
-	ExampleHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
+	AccessoriesHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
 
 	bool handleGet(CivetServer *server, struct mg_connection *conn) {
-		mg_printf(conn, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n");
-		mg_printf(conn, "<html><body>\r\n");
-		mg_printf(conn, "<h2>This is an example text from a C++ handler</h2>\r\n");
-		mg_printf(conn, "<p>To see a page from the A handler <a href=\"A\">click here</a></p>\r\n");
-		mg_printf(conn, "<p>To see a page from the A handler with a parameter <a href=\"A?param=1\">click here</a></p>\r\n");
-		mg_printf(conn, "<p>To see a page from the A/B handler <a href=\"A/B\">click here</a></p>\r\n");
-		mg_printf(conn, "<p>To see a page from the *.foo handler <a href=\"xy.foo\">click here</a></p>\r\n");
-		mg_printf(conn, "<p>To exit <a href=\"%s\">click here</a></p>\r\n", EXIT_URI);
-		mg_printf(conn, "</body></html>\r\n");
+		HAPClient client(conn);
+		
+		_hapServer.getAccessories(client);
+		
 		return true;
 	}
 };
@@ -111,14 +108,10 @@ int main(int argc, char *argv[])
 
 	CivetServer server(options);
 	HAPServer hapServer;
-
-	server.addHandler(EXAMPLE_URI, new ExampleHandler(hapServer));
+	
+	server.addHandler(ACCESSORIES_URI, new AccessoriesHandler(hapServer));
 	server.addHandler(EXIT_URI, new ExitHandler());
 	server.addHandler("/a", new AHandler(hapServer));
-
-	printf("Browse files at http://localhost:%s/\n", PORT);
-	printf("Run example at http://localhost:%s%s\n", PORT, EXAMPLE_URI);
-	printf("Exit at http://localhost:%s%s\n", PORT, EXIT_URI);
 
 	while (!exitNow) {
 #ifdef _WIN32
@@ -127,7 +120,7 @@ int main(int argc, char *argv[])
 		sleep(1);
 #endif
 	}
-
+	
 	printf("Bye!\n");
 
 	return 0;

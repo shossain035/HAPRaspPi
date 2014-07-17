@@ -1,4 +1,4 @@
-#include <HAPAccessory.h>
+#include "HAPAccessory.h"
 
 
 HAPAccessory::HAPAccessory(unsigned char instanceId, HAPService ** const services, unsigned char servicesCount)
@@ -6,10 +6,10 @@ HAPAccessory::HAPAccessory(unsigned char instanceId, HAPService ** const service
 {
 }
 
-int HAPAccessory::sendToClient(Client & client)
+int HAPAccessory::sendToClient(HAPClient & client)
 {
-	client.print("{\"instanceID\":");
-	client.print(_instanceId);
+	printInstanceId(client);
+
 	client.print(",\"services\":[");
 
 	for (unsigned char i = 0; i < _servicesCount; i++) {

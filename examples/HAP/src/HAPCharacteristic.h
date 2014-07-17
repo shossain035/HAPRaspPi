@@ -28,7 +28,7 @@ public:
 	HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value);
 	HAPCharacteristic(unsigned char instanceId, const char * const type, int value);
 
-	virtual int sendToClient(HAPClient & client);
+	virtual int sendToClient(HAPClient& client);
 	~HAPCharacteristic();
 private:
 	//void setValue(HAPCharacteristicValue * const value);

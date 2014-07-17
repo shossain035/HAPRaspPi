@@ -7,7 +7,10 @@ class HAPServer
 {
 public:
 	HAPServer();
-	void processRequest(HAPClient& client);
+
+	//todo: consider threading issues for all the get and put
+	void getAccessories(HAPClient& client);
+
 	~HAPServer();
 private:
 	HAPAccessory ** _accessories;

@@ -24,8 +24,7 @@ HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * cons
 int HAPCharacteristic::sendToClient(HAPClient & client)
 {
 	//todo: properties and meta data
-	client.print("{\"instanceID\":");
-	client.print(_instanceId);
+	printInstanceId(client);
 
 	client.print(",\"type\":\"public.hap.characteristic.");
 	client.print(_type);

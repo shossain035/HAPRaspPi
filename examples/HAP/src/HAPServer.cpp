@@ -21,14 +21,10 @@ HAPServer::HAPServer()
 	_accessories[0] = new HAPAccessory(1, services, 2);
 }
 
-void HAPServer::processRequest(HAPClient & client)
+void HAPServer::getAccessories(HAPClient & client)
 {
-	client.println("HTTP/1.1 200 OK");
-	client.println("Content-Type: application/hap+json");
-	//client.println("Connnection: close");
-	client.println("Content-Length: 926");
-	client.println();
-
+	//todo calculate length programetically
+	client.sendHeader(HAP::SUCCESS, 926);
 	client.print("{\"accessories\":[");
 
 	for (unsigned char i = 0; i < _accessoryCount; i++) {
@@ -39,7 +35,6 @@ void HAPServer::processRequest(HAPClient & client)
 	}
 
 	client.println("]}");
-
 }
 
 HAPServer::~HAPServer()

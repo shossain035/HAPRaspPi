@@ -6,9 +6,10 @@
 class HAPBase {
 public:
 	HAPBase(unsigned char instanceId);
-	virtual int sendToClient(HAPClient & client) = 0;
-	virtual ~HAPBase() = 0;
+	virtual int sendToClient(HAPClient& client) = 0;
+	virtual ~HAPBase() {};
 protected: 
 	unsigned char _instanceId;
+	void printInstanceId(HAPClient & client);
 };
 #endif

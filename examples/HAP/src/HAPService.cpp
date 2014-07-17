@@ -14,8 +14,8 @@ HAPService::HAPService(unsigned char instanceId, const char * const type, HAPCha
 
 int HAPService::sendToClient(HAPClient & client)
 {
-	client.print("{\"instanceID\":");
-	client.print(_instanceId);
+	printInstanceId(client);
+
 	client.print(",\"type\":\"public.hap.service.");
 	client.print(_type);
 	client.print("\",\"characteristics\":[");
