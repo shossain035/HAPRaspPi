@@ -7,6 +7,7 @@
 
 #include "CivetServer.h"
 #include "HAPServer.h"
+#include "TLV.h"
 #include <assert.h>
 
 #ifdef _WIN32
@@ -18,7 +19,8 @@
 #define PORT "8081"
 #define ACCESSORIES_URI "/accessories$"
 #define CHARACTERISTIC_URI "/accessories/**/services/**/characteristics/**$"
-                          
+#define PAIR_SETUP_URI "/pair-setup$"
+
 #define EXIT_URI "/exit"
 bool exitNow = false;
 
@@ -29,6 +31,47 @@ public:
 	BaseHandler(HAPServer& hapServer) : _hapServer(hapServer) {}
 protected:
 	HAPServer& _hapServer;
+};
+
+class PairSetupHandler : public BaseHandler
+{
+public:
+	PairSetupHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
+	bool handlePost(CivetServer *server, struct mg_connection *conn) {
+		printf("POST pair\n");
+		struct mg_request_info *ri = mg_get_request_info(conn);
+		char * body = CivetServer::getBody(conn);
+		byte_string bytes;
+		int contentlength = CivetServer::getContentLength(conn);
+
+		printf("uri: %s\n", ri->uri );
+		printf("length: %d\n", contentlength);
+		printf("body:\n");
+
+		for (int i = 0;  i<contentlength ; i++) {
+			printf("%02hhx ", static_cast<unsigned char> (body[i]));
+			bytes.push_back(body[i]);
+		}
+		printf("\n*******************************\n");
+
+		TLVList tlvList;		
+		try {
+			byte_string::iterator begin = bytes.begin();
+
+			TLV::parseSequence(begin, bytes.end(), tlvList);
+		}
+		catch (const std::runtime_error& error) {
+			
+			printf("runtime_error: %s\n", error.what());
+			return false; //true
+		}
+
+		for (TLVList::const_iterator iter = tlvList.begin(); iter < tlvList.end(); iter++) {
+			printf("T: %02hhx %02hhx\n", (*iter)->getTag().at(0), (*iter)->length());
+		}
+		
+		return false; // change
+	}
 };
 
 class AccessoriesHandler : public BaseHandler
@@ -119,6 +162,7 @@ int main(int argc, char *argv[])
 	
 	server.addHandler(ACCESSORIES_URI, new AccessoriesHandler(hapServer));
 	server.addHandler(CHARACTERISTIC_URI, new CharacteristicHandler(hapServer));
+	server.addHandler(PAIR_SETUP_URI, new PairSetupHandler(hapServer));
 
 	server.addHandler(EXIT_URI, new ExitHandler());
 	

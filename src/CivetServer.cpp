@@ -247,22 +247,19 @@ CivetServer::getBody(struct mg_connection *conn)
     mg_lock_connection(conn);
     mg_unlock_context(me->context);
     
-    const char * con_len_str = mg_get_header(conn, "Content-Length");
-    if (con_len_str) {
-        unsigned long con_len = atoi(con_len_str);
-        if (con_len>0) {
-            // Add one extra character: in case the post-data is a text, it is required as 0-termination.
-            // Do not increment con_len, since the 0 terminating is not part of the content (text or binary).
-            conobj.postData = (char*)malloc(con_len + 1);
-            if (conobj.postData != NULL) {
-                // malloc may fail for huge requests
-                mg_read(conn, conobj.postData, con_len);
-                conobj.postData[con_len] = 0;
-                conobj.postDataLen = con_len;
-            }
+    unsigned long con_len = getContentLength(conn);
+    if (con_len>0) {
+        // Add one extra character: in case the post-data is a text, it is required as 0-termination.
+        // Do not increment con_len, since the 0 terminating is not part of the content (text or binary).
+        conobj.postData = (char*)malloc(con_len + 1);
+        if (conobj.postData != NULL) {
+            // malloc may fail for huge requests
+            mg_read(conn, conobj.postData, con_len);
+            conobj.postData[con_len] = 0;
+            conobj.postDataLen = con_len;
         }
     }
-
+    
     mg_unlock_connection(conn);
 
     return conobj.postData;
@@ -292,6 +289,16 @@ CivetServer::urlEncode(const char *src, size_t src_len, std::string &dst, bool a
             dst.push_back(hex[(* (const unsigned char *) src) & 0xf]);
         }
     }
+}
+
+int
+CivetServer::getContentLength(struct mg_connection *conn)
+{
+	const char * con_len_str = mg_get_header(conn, "Content-Length");
+	if (con_len_str) {
+		return atoi(con_len_str);
+	}
+	return -1;
 }
 
 CivetServer::CivetConnection::CivetConnection() {

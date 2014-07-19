@@ -9,8 +9,8 @@ OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
 TOP = ../..
 CIVETWEB_LIB = libcivetweb.a
 
-CFLAGS = -I$(TOP)/include $(COPT)
-LIBS = -lpthread
+CFLAGS = -I$(TOP)/include $(COPT) -std=c++0x
+LIBS = -lpthread -lssl -lcrypto
 
 include $(TOP)/resources/Makefile.in-os
 

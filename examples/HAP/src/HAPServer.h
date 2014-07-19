@@ -2,6 +2,7 @@
 #define _HAPSERVER_H_
 
 #include "HAPAccessory.h"
+#include "HAPPairHandler.h"
 
 class HAPServer
 {
@@ -21,9 +22,10 @@ private:
 	HAPCharacteristic* getCharacteristic(
 		int accessoryId, int serviceId, int characteristicId);
 
-	HAPAccessory ** _accessories;
+	HAPAccessory** _accessories;
 	int _accessoryCount;
 
+	HAPPairHandler _pairHandler;
 };
 
 

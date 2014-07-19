@@ -276,6 +276,8 @@ public:
      */
     static void urlEncode(const char *src, size_t src_len, std::string &dst, bool append=false);
 
+	static int getContentLength(struct mg_connection *conn);
+
 protected:
     class CivetConnection {
     public:
