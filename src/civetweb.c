@@ -742,7 +742,7 @@ static struct mg_option config_options[] = {
     {"run_as_user",                 CONFIG_TYPE_STRING,        NULL},
     {"url_rewrite_patterns",        12345,                     NULL},
     {"hide_files_patterns",         12345,                     NULL},
-    {"request_timeout_ms",          CONFIG_TYPE_NUMBER,        "30000"},
+    {"request_timeout_seconds",     CONFIG_TYPE_NUMBER,        "300"},
 
 #if defined(USE_LUA)
     {"lua_preload_file",            CONFIG_TYPE_FILE,          NULL},
@@ -6615,14 +6615,14 @@ static void produce_socket(struct mg_context *ctx, const struct socket *sp)
     (void) pthread_mutex_unlock(&ctx->thread_mutex);
 }
 
-static int set_sock_timeout(SOCKET sock, int milliseconds)
+static int set_sock_timeout(SOCKET sock, int seconds)
 {
 #ifdef _WIN32
-    DWORD t = milliseconds;
+	DWORD t = seconds * 1000;
 #else
     struct timeval t;
-    t.tv_sec = milliseconds / 1000;
-    t.tv_usec = (milliseconds * 1000) % 1000000;
+	t.tv_sec = seconds;
+	t.tv_usec = (seconds * 1000000);
 #endif
     return setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (void *) &t, sizeof(t)) ||
            setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (void *) &t, sizeof(t));
