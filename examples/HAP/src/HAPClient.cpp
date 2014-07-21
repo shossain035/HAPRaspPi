@@ -1,4 +1,7 @@
 #include "HAPClient.h"
+#include "CivetServer.h"
+
+
 
 HAPClient::HAPClient(struct mg_connection* conn) : _conn(conn) 
 {
@@ -32,6 +35,10 @@ void HAPClient::println()
 	print("\r\n");
 }
 
+void HAPClient::printBytes(const char * bytes, size_t length)
+{
+	mg_write(_conn, bytes, length);
+}
 
 void HAPClient::sendHeaderWithoutBody(HAP::HAPStatus status)
 {
@@ -39,7 +46,8 @@ void HAPClient::sendHeaderWithoutBody(HAP::HAPStatus status)
 	println();
 }
 
-void HAPClient::sendHeader(HAP::HAPStatus status, int contentLength)
+void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength, 
+						 HAP::HAPMessageContentType contentType)
 {
 	print("HTTP/1.1 ");
 
@@ -55,9 +63,28 @@ void HAPClient::sendHeader(HAP::HAPStatus status, int contentLength)
 			break;
 	}
 
-	println("Content-Type: application/hap+json");
+	print("Content-Type: application/");
+	switch (contentType) {
+		case HAP::HAPMessageContentTypeJSON:
+			println("hap+json");
+			break;
+		case HAP::HAPMessageContentTypeTLV:
+			println("pairing+tlv8");
+			break;
+	}
+
 	print("Content-Length: ");
 	println(contentLength);
 
 	println();
+}
+
+const char* HAPClient::getMessage() 
+{
+	return CivetServer::getBody(_conn);
+}
+
+int HAPClient::getMessageLength()
+{
+	return CivetServer::getContentLength(_conn);;
 }

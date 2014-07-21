@@ -1,5 +1,6 @@
 #include "HAPCharacteristic.h"
 #include <string.h>
+#include <stdio.h>
 
 
 const char * HAPCharacteristicTypes::name = "name";

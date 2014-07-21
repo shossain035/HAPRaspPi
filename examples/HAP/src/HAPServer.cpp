@@ -1,4 +1,6 @@
 #include "HAPServer.h"
+#include <stddef.h>
+
 
 HAPServer::HAPServer()
 {
@@ -34,7 +36,7 @@ void HAPServer::getAccessories(HAPClient & client)
 		_accessories[i]->sendToClient(client);
 	}
 
-	client.println("]}");
+	client.print("]}");
 }
 
 HAPCharacteristic* HAPServer::getCharacteristic(
@@ -75,8 +77,8 @@ void HAPServer::getCharacteristic(HAPClient& client,
 	characteristic->sendToClient(client);
 }
 
-void HAPServer::putCharacteristic(HAPClient& client,
-	int accessoryId, int serviceId, int characteristicId, const char* body)
+void HAPServer::updateCharacteristic(HAPClient& client,
+	int accessoryId, int serviceId, int characteristicId)
 {
 	HAPCharacteristic* characteristic
 		= getCharacteristic(accessoryId, serviceId, characteristicId);
@@ -86,7 +88,12 @@ void HAPServer::putCharacteristic(HAPClient& client,
 		return;
 	}
 	
-	characteristic->updateValueWithJSON(client, body);
+	characteristic->updateValueWithJSON(client, client.getMessage());
+}
+
+void HAPServer::setupPair(HAPClient& client)
+{
+	_authenticationHAndlerHandler.setupPair(client);
 }
 
 HAPServer::~HAPServer()

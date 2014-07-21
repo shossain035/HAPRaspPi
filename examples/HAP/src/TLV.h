@@ -78,14 +78,14 @@ public:
 		tag += ch;
 		if (iter >= end) throw std::runtime_error("Invalid TLV-encoding");
 		/* If the tag is flagged as a multibyte tag */
-		if ((ch & 0x1F) == 0x1F) { /* Multibyte tag */
-			do {
-				ch = *iter++;
-				tag += ch;
-				if (iter >= end) throw std::runtime_error("Invalid TLV-encoding");
-				/* Read more until there are no more bytes w/o the high-bit set */
-			} while ((ch & 0x80) != 0);
-		}
+		//if ((ch & 0x1F) == 0x1F) { /* Multibyte tag */
+		//	do {
+		//		ch = *iter++;
+		//		tag += ch;
+		//		if (iter >= end) throw std::runtime_error("Invalid TLV-encoding");
+		//		/* Read more until there are no more bytes w/o the high-bit set */
+		//	} while ((ch & 0x80) != 0);
+		//}
 		/* Parse the length of the contained value */
 		size_t length = parseLength(iter, end);
 		ForwardIterator begin = iter;
@@ -140,19 +140,20 @@ private:
 	 */
 	template<typename ForwardIterator>
 	static size_t parseLength(ForwardIterator &iter, const ForwardIterator &end) throw(std::runtime_error) {
-		// Parse a BER length field. Returns the value of the length
-		uint8_t ch = *iter++;
-		if (!(ch & 0x80))	// single byte
-			return static_cast<uint32_t>(ch);
-		size_t result = 0;
-		uint8_t byteLen = ch & 0x7F;
-		for (; byteLen > 0; byteLen--) {
-			if (iter == end)
-				throw std::runtime_error("Invalid BER-encoded length");
-			ch = *iter++;
-			result = (result << 8) | static_cast<uint8_t>(ch);
-		}
-		return result;
+		return (*iter++);
+		//// Parse a BER length field. Returns the value of the length
+		//uint8_t ch = *iter++;
+		//if (!(ch & 0x80))	// single byte
+		//	return static_cast<uint32_t>(ch);
+		//size_t result = 0;
+		//uint8_t byteLen = ch & 0x7F;
+		//for (; byteLen > 0; byteLen--) {
+		//	if (iter == end)
+		//		throw std::runtime_error("Invalid BER-encoded length");
+		//	ch = *iter++;
+		//	result = (result << 8) | static_cast<uint8_t>(ch);
+		//}
+		//return result;
 	}
 
 	/* ber-encodes an integer and writes it's output to 'out' */

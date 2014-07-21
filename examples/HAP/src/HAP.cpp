@@ -7,7 +7,6 @@
 
 #include "CivetServer.h"
 #include "HAPServer.h"
-#include "TLV.h"
 #include <assert.h>
 
 #ifdef _WIN32
@@ -38,39 +37,11 @@ class PairSetupHandler : public BaseHandler
 public:
 	PairSetupHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
 	bool handlePost(CivetServer *server, struct mg_connection *conn) {
-		printf("POST pair\n");
-		struct mg_request_info *ri = mg_get_request_info(conn);
-		char * body = CivetServer::getBody(conn);
-		byte_string bytes;
-		int contentlength = CivetServer::getContentLength(conn);
-
-		printf("uri: %s\n", ri->uri );
-		printf("length: %d\n", contentlength);
-		printf("body:\n");
-
-		for (int i = 0;  i<contentlength ; i++) {
-			printf("%02hhx ", static_cast<unsigned char> (body[i]));
-			bytes.push_back(body[i]);
-		}
-		printf("\n*******************************\n");
-
-		TLVList tlvList;		
-		try {
-			byte_string::iterator begin = bytes.begin();
-
-			TLV::parseSequence(begin, bytes.end(), tlvList);
-		}
-		catch (const std::runtime_error& error) {
-			
-			printf("runtime_error: %s\n", error.what());
-			return false; //true
-		}
-
-		for (TLVList::const_iterator iter = tlvList.begin(); iter < tlvList.end(); iter++) {
-			printf("T: %02hhx %02hhx\n", (*iter)->getTag().at(0), (*iter)->length());
-		}
+		printf("POST pair-setup\n");
 		
-		return false; // change
+		HAPClient client(conn);
+		_hapServer.setupPair(client);
+		return true;
 	}
 };
 
@@ -129,10 +100,8 @@ public:
 			return true;
 		}
 			
-		char * body = CivetServer::getBody(conn);
-
 		HAPClient client(conn);
-		_hapServer.putCharacteristic(client, accessoryId, serviceId, characteristicId, body);
+		_hapServer.updateCharacteristic(client, accessoryId, serviceId, characteristicId);
 
 		return true;
 	}

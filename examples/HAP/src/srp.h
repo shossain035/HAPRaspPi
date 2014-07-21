@@ -175,7 +175,7 @@ const unsigned char * srp_user_get_session_key( struct SRPUser * usr, int * key_
 int                   srp_user_get_session_key_length( struct SRPUser * usr );
 
 /* Output: username, bytes_A, len_A */
-void                  srp_user_start_authentication( struct SRPUser * usr, const char ** username, 
+void                  srp_user_start_authentication( struct SRPUser * usr, //const char ** username, 
                                                      const unsigned char ** bytes_A, int * len_A );
 
 /* Output: bytes_M, len_M  (len_M may be null and will always be 

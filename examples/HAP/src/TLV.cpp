@@ -129,6 +129,7 @@ size_t TLV::length() const throw() {
 
 void TLV::encodeLength(size_t value, byte_string &out) throw() {
 	/* Encode and output the length according to BER-TLV encoding rules */
+	/*
 	static const size_t MAX_VALUE = std::numeric_limits<size_t>::max();
 	static const size_t highbyte = (MAX_VALUE ^ (MAX_VALUE >> 8));
 	static const size_t shiftbyte = (sizeof(size_t) - 1) * 8;
@@ -145,27 +146,30 @@ void TLV::encodeLength(size_t value, byte_string &out) throw() {
 	for(i = 0; i < size; i++) {
 		out += (unsigned char)((value >> shiftbyte) & 0xFF);
 		value <<= 8;
-	}
+	}*/
+	/* Simple TLV. considering length 0-255 */
+	out += (unsigned char)value;
 }
 
 size_t TLV::encodedLength(size_t value) throw() {
-	if(value < 0x80)
-		return 1;
-	/* Values larger than 0x7F must be encoded in the form (Length-Bytes) (Length) */
-	static const size_t MAX_VALUE = std::numeric_limits<size_t>::max();
-	/* EX: 0xFF000000 - for size_t == 32-bit */
-	static const size_t highbyte = (MAX_VALUE ^ (MAX_VALUE >> 8));
-	size_t size = sizeof(value);
-	/* Check for the highest byte that contains a value */
-	while(0 == (value & highbyte) && size > 0) {
-		value <<= 8;
-		size--;
-	}
-	/* + 1 for byte-size byte
-	 * Size encoded as (0x80 + N) [N-bytes]
-	 * Max size-bytes == 127
-	 */
-	return size + 1;
+	return 1;
+	//if(value < 0x80)
+	//	return 1;
+	///* Values larger than 0x7F must be encoded in the form (Length-Bytes) (Length) */
+	//static const size_t MAX_VALUE = std::numeric_limits<size_t>::max();
+	///* EX: 0xFF000000 - for size_t == 32-bit */
+	//static const size_t highbyte = (MAX_VALUE ^ (MAX_VALUE >> 8));
+	//size_t size = sizeof(value);
+	///* Check for the highest byte that contains a value */
+	//while(0 == (value & highbyte) && size > 0) {
+	//	value <<= 8;
+	//	size--;
+	//}
+	///* + 1 for byte-size byte
+	// * Size encoded as (0x80 + N) [N-bytes]
+	// * Max size-bytes == 127
+	// */
+	//return size + 1;
 }
 
 void TLV::encodeSequence(const TLVList &tlv, byte_string &out) throw() {

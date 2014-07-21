@@ -793,7 +793,7 @@ int                   srp_user_get_session_key_length( struct SRPUser * usr )
 
 
 /* Output: username, bytes_A, len_A */
-void  srp_user_start_authentication( struct SRPUser * usr, const char ** username, 
+void  srp_user_start_authentication( struct SRPUser * usr, //const char ** username, 
                                      const unsigned char ** bytes_A, int * len_A )
 {
     BN_CTX  *ctx  = BN_CTX_new();
@@ -811,14 +811,14 @@ void  srp_user_start_authentication( struct SRPUser * usr, const char ** usernam
     {
        *len_A = 0;
        *bytes_A = 0;
-       *username = 0;
+       //*username = 0;
        return;
     }
         
     BN_bn2bin( usr->A, (unsigned char *) *bytes_A );
     
     usr->bytes_A = *bytes_A;
-    *username = usr->username;
+    //*username = usr->username;
 }
 
 

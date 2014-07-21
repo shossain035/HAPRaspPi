@@ -1,4 +1,5 @@
 #include "HAPService.h"
+#include <stdio.h>
 
 
 const char * HAPServiceTypes::accessoryInformation = "accessory-information";
@@ -35,7 +36,6 @@ int HAPService::sendToClient(HAPClient & client)
 HAPCharacteristic* HAPService::characteristicForId(int characteristicId)
 {
 	if (!HAPBase::withinInclusiveRange(characteristicId, 1, (int)_characteristicsCount)) {
-		printf("failed char\n");
 		return NULL;
 	}
 

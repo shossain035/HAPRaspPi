@@ -1,7 +1,7 @@
 #ifndef _HAPCLIENT_H_
 #define _HAPCLIENT_H_
 
-#include "CivetServer.h"
+#include <stddef.h>
 
 namespace HAP
 {
@@ -10,6 +10,12 @@ namespace HAP
 		SUCCESS        = -200,
 		BAD_REQUEST    = -400,
 		INTERNAL_ERROR = -500
+	};
+
+	enum HAPMessageContentType
+	{
+		HAPMessageContentTypeJSON,
+		HAPMessageContentTypeTLV
 	};
 }
 
@@ -22,7 +28,13 @@ public:
 	void println(const char * string);
 	void println();
 
-	void sendHeader(HAP::HAPStatus status, int contentLength);
+	void printBytes(const char * bytes, size_t length);
+
+	const char* getMessage();
+	int getMessageLength();
+
+	void sendHeader(HAP::HAPStatus status, size_t contentLength, 
+		HAP::HAPMessageContentType contentType = HAP::HAPMessageContentTypeJSON);
 	void sendHeaderWithoutBody(HAP::HAPStatus status);
 private:
 	struct mg_connection* _conn;

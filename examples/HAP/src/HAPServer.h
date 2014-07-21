@@ -2,7 +2,7 @@
 #define _HAPSERVER_H_
 
 #include "HAPAccessory.h"
-#include "HAPPairHandler.h"
+#include "HAPAuthenticationHandler.h"
 
 class HAPServer
 {
@@ -13,10 +13,10 @@ public:
 	void getAccessories(HAPClient& client);
 	void getCharacteristic(HAPClient& client, 
 		int accessoryId, int serviceId, int characteristicId);
-	void putCharacteristic(HAPClient& client, 
-		int accessoryId, int serviceId, int characteristicId, const char* body);
+	void updateCharacteristic(HAPClient& client, 
+		int accessoryId, int serviceId, int characteristicId);
 
-
+	void setupPair(HAPClient& client);
 	~HAPServer();
 private:
 	HAPCharacteristic* getCharacteristic(
@@ -25,7 +25,7 @@ private:
 	HAPAccessory** _accessories;
 	int _accessoryCount;
 
-	HAPPairHandler _pairHandler;
+	HAPAuthenticationHandler _authenticationHAndlerHandler;
 };
 
 
