@@ -46,8 +46,9 @@ inline byte_string &operator+=(byte_string &l, const char &value) {
 	return l;
 }
 
-inline byte_string &operator+=(byte_string &l, const byte_string::value_type *value) {
-	l.insert(l.end(), value, value + strlen((char*)value));
+/* RHS must be null-terminated */
+inline byte_string &operator+=(byte_string &l, const char* value) {
+	l.insert(l.end(), value, value + strlen(value));
 	return l;
 }
 

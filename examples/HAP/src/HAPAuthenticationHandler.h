@@ -55,10 +55,12 @@ private:
 	void sendTLVToClient(HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList);
 
 	
-	void initializeSRPSession(const byte_string& userName);
+	void initializeSRPSession(const byte_string& username);
 	//todo: read from file
 	static const char * _password;
+	static const char * _accessoryUsername;
 
 	SRP* _srpSessionRef;
+	byte_string _srpSessionSecretKey;
 };
 #endif

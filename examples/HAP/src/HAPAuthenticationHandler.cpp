@@ -12,6 +12,7 @@ extern "C"
 using namespace HAPAuthentication;
 
 const char* HAPAuthenticationHandler::_password = "1234";
+const char* HAPAuthenticationHandler::_accessoryUsername = "0d0dc4e8-2b24-4f85-b015-62ea07286d50";
 
 HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 {
@@ -81,7 +82,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::BAD_REQUEST;
 			}
 
-			byte_string userName = userTLV->getValue();
+			byte_string username = userTLV->getValue();
 			
 			//clear the previous session and create a new one
 			if (_srpSessionRef != NULL && SRP_free(_srpSessionRef) < 0) {
@@ -91,7 +92,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			_srpSessionRef = SRP_new(SRP6a_server_method());
 			
 			//set username
-			if (SRP_set_user_raw(_srpSessionRef, userName.data(), userName.size()) < 0) {
+			if (SRP_set_user_raw(_srpSessionRef, username.data(), username.size()) < 0) {
 				printf("failed to set username: \n");
 				return HAP::INTERNAL_ERROR;
 			}
@@ -160,7 +161,12 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 			
-			//todo: save into byte_string. may be available srp->key
+			//save shared secret session key
+			_srpSessionSecretKey.clear();
+			for (int i = 0; i<sharedSecretKey->length ; i++) {
+				_srpSessionSecretKey.push_back(sharedSecretKey->data[i]);
+			}
+
 			cstr_free(sharedSecretKey);
 
 			byte_string controllerProof = controllerProofTLV->getValue();
@@ -183,18 +189,24 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			responseTLVList.push_back(createTLVForState(M4));
 
 			cstr_free(accessoryProof);
+			//srp session is over
+			SRP_free(_srpSessionRef);
+
 			break;
 		}
-		case M4:
-			break;
 		case M5:
+		{
+			TLV_ref controllerEncryptedLTPK = getTLVForType(TLVTypeEncryptedData, requestTLVList);
+			TLV_ref controllerAuthTag = getTLVForType(TLVTypeAuthTag, requestTLVList);
+
+			////setting state
+			responseTLVList.push_back(createTLVForState(M6));
 			break;
-		case M6:
-			break;
+		}
 		default:
 			printf("no matching state found\n");
 			//todo: send error
-			break;
+			return HAP::BAD_REQUEST;
 	}
 
 	return HAP::SUCCESS;
@@ -277,6 +289,6 @@ HAPAuthenticationHandler::createTLVForState(PairingState state)
 }
 
 void 
-HAPAuthenticationHandler::initializeSRPSession(const byte_string& userName)
+HAPAuthenticationHandler::initializeSRPSession(const byte_string& username)
 {
 }
