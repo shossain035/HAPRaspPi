@@ -7,9 +7,10 @@ namespace HAP
 {
 	enum HAPStatus
 	{
-		SUCCESS        = -200,
-		BAD_REQUEST    = -400,
-		INTERNAL_ERROR = -500
+		SUCCESS           = -200,
+		BAD_REQUEST       = -400,
+		TOO_MANY_REQUESTS = -429,
+		INTERNAL_ERROR    = -500
 	};
 
 	enum HAPMessageContentType

@@ -3,6 +3,7 @@
 
 #include "HAPClient.h"
 #include "TLV.h"
+#include "srp.h"
 
 namespace HAPAuthentication
 {
@@ -35,6 +36,7 @@ namespace HAPAuthentication
 	};
 }
 
+
 class HAPAuthenticationHandler {
 public:
 	HAPAuthenticationHandler();
@@ -43,22 +45,20 @@ public:
 	//char* decryptMessage(HAPClient& client);
 	//char* encryptMessage(HAPClient& client);
 
-	virtual ~HAPAuthenticationHandler() {}
+	virtual ~HAPAuthenticationHandler();
 private:
-	void processSetupRequest(HAPClient& client, const TLVList& tlvList);
+	HAP::HAPStatus processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
 
-	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, const unsigned char* inputString, int inputStringLength, TLVList& outputTLVList);
+	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, const char* inputString, int inputStringLength, TLVList& outputTLVList);
 	TLV_ref getTLVForType(HAPAuthentication::TLVType tlvType, const TLVList& tlvList);
 	TLV_ref createTLVForState(HAPAuthentication::PairingState state);
-	void sendTLVToClient(HAPClient& client, const TLVList& tlv);
+	void sendTLVToClient(HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList);
 
 	
 	void initializeSRPSession(const byte_string& userName);
 	//todo: read from file
 	static const char * _password;
 
-	//caution: session variables
-	struct SRPUser* _pairingUserRef;
-	byte_string _pairingSalt;
+	SRP* _srpSessionRef;
 };
 #endif

@@ -1,19 +1,32 @@
 #include "HAPAuthenticationHandler.h"
-#include "srp.h"
+
+extern "C"
+{
+#include "t_pwd.h"
+}
 
 #define TLV_VALUE_MAXIMUM_LENGTH          255
+#define SRP_2048_NG_INDEX                 8
+#define SALT_LENGTH                       16
+
 using namespace HAPAuthentication;
 
 const char* HAPAuthenticationHandler::_password = "1234";
 
-HAPAuthenticationHandler::HAPAuthenticationHandler() : _pairingUserRef(NULL)
+HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 {
+	SRP_initialize_library();
+}
+
+HAPAuthenticationHandler::~HAPAuthenticationHandler()
+{
+	SRP_finalize_library();
 }
 
 void 
 HAPAuthenticationHandler::setupPair(HAPClient& client)
 {
-	//todo: process 429
+	//todo: process 429. simultaneous pairing attempts will break the system.
 	byte_string bytes;
 	const char* message = client.getMessage();
 	int messageLength = client.getMessageLength();
@@ -40,138 +53,136 @@ HAPAuthenticationHandler::setupPair(HAPClient& client)
 		return;
 	}
 
-	processSetupRequest(client, tlvList);
+	TLVList responseTLVList;
+	sendTLVToClient(client, processSetupRequest(tlvList, responseTLVList), 
+						responseTLVList);		
 }
 
 
-void
-HAPAuthenticationHandler::processSetupRequest(HAPClient& client, const TLVList& tlvList)
+HAP::HAPStatus
+HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList)
 {
-	TLV_ref stateTLV = getTLVForType(TLVTypeState, tlvList);
+	TLV_ref stateTLV = getTLVForType(TLVTypeState, requestTLVList);
 	if (NULL == stateTLV) {
 		printf("empty state tlv\n");
 		//todo: send error
-		return;
+		return HAP::BAD_REQUEST;
 	}
 
 	uint8_t tlvState = stateTLV->getValue().at(0);
 	printf("state: %02hhx\n", tlvState);
-	TLVList responseTLVList;
 	
 	switch (tlvState) {
 		case M1:
-		{	const unsigned char * bytes_v = 0;
-			const unsigned char * bytes_s = 0;
-			const unsigned char * bytes_A = 0;
-			
-			int len_v = 0;
-			int len_s = 0;			
-			int len_A = 0;
-			
-			TLV_ref userTLV = getTLVForType(TLVTypeUser, tlvList);
+		{	
+			TLV_ref userTLV = getTLVForType(TLVTypeUser, requestTLVList);
 			if (NULL == userTLV) {
 				//todo: send error
-				break;
+				return HAP::BAD_REQUEST;
 			}
 
-			//start SRP session			
 			byte_string userName = userTLV->getValue();
-			userName.push_back(0);
-			char* userNameString = reinterpret_cast<char*>(userName.data());
-			printf("userName: %s\n", userNameString);
-
-			//create salt
-			srp_create_salted_verification_key(SRP_SHA1, SRP_NG_2048, userNameString,
-				(const unsigned char *)_password,
-				strlen(_password),
-				&bytes_s, &len_s, &bytes_v, &len_v, 0, 0);
-
-			_pairingSalt.clear();
-			for (int j = 0; j < 4; j++) {
-				for (int i = 0; i < len_s; i++) {
-					_pairingSalt.push_back(bytes_s[i]);
-				}
+			
+			//clear the previous session and create a new one
+			if (_srpSessionRef != NULL && SRP_free(_srpSessionRef) < 0) {
+				printf("failed to clear srp session\n");
+				return HAP::INTERNAL_ERROR;
 			}
-
-			//free((char *)bytes_s);
-			//free((char *)bytes_v);
-
-			printf("creating user\n");
-			//create user
-			srp_user_delete(_pairingUserRef);
-
-			_pairingUserRef = srp_user_new(SRP_SHA1, SRP_NG_2048, userNameString,
-				(const unsigned char *)_password,
-				strlen(_password), 0, 0);
-
-			srp_user_start_authentication(_pairingUserRef, &bytes_A, &len_A);
-
-			////debugging
-			const unsigned char * bytes_B = 0;
-			int len_B = 0;
-			srp_verifier_new(SRP_SHA1, SRP_NG_2048, userNameString, _pairingSalt.data(), len_s, bytes_v, len_v,         //controller 
-				bytes_A, len_A, &bytes_B, &len_B, 0, 0);
-
-			for (int i = 0; i<len_B; i++) {
-				printf("%02hhx ", (bytes_B[i]));
+			_srpSessionRef = SRP_new(SRP6a_server_method());
+			
+			//set username
+			if (SRP_set_user_raw(_srpSessionRef, userName.data(), userName.size()) < 0) {
+				printf("failed to set username: \n");
+				return HAP::INTERNAL_ERROR;
 			}
-			printf("\n*******************************\n");
+			
+			//set N, G, salt
+			byte_string salt;
+			for (size_t i = 0; i < SALT_LENGTH; i++) {
+				salt.push_back(rand());
+			}
+				
+			struct t_preconf* predefinedSRPConstant = t_getpreparam(SRP_2048_NG_INDEX);
 
-			free((char *)bytes_s);
-			free((char *)bytes_v);
-			////debugging end
-
-
-			//setting accessory's public key			
-			computeTLVsFromString(TLVTypePublicKey, bytes_A, len_A, responseTLVList);			
-			//setting salt
-			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeSalt, _pairingSalt)));			
-			//setting state
+			//printf("N: %s\n", predefinedSRPConstant->modulus.data);
+			if (SRP_set_params(
+					_srpSessionRef, 
+					predefinedSRPConstant->modulus.data, 
+					predefinedSRPConstant->modulus.len,
+					predefinedSRPConstant->generator.data, 
+					predefinedSRPConstant->generator.len,
+					salt.data(), 
+					SALT_LENGTH) < 0) {
+				printf("SRP_set_params failed\n");
+				return HAP::INTERNAL_ERROR;
+			}
+			//set password
+			if (SRP_set_auth_password(_srpSessionRef, _password) < 0) {
+				printf("SRP_set_authenticator failed\n");
+				return HAP::INTERNAL_ERROR;
+			}
+			//generate public key
+			cstr* accessoryPublicKey = NULL;
+			if (SRP_gen_pub(_srpSessionRef, &accessoryPublicKey) != SRP_SUCCESS) {
+				printf("SRP_gen_pub failed\n");
+				return HAP::INTERNAL_ERROR;
+			}
+			
+			////setting accessory's public key			
+			computeTLVsFromString(TLVTypePublicKey, 
+				accessoryPublicKey->data, accessoryPublicKey->length, responseTLVList);
+			////setting salt
+			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeSalt, salt)));
+			////setting state
 			responseTLVList.push_back(createTLVForState(M2));
 
-			sendTLVToClient(client, responseTLVList);
+			cstr_free(accessoryPublicKey);
 			
 			break;
 		}
 		case M3:
 		{
-			const unsigned char * bytes_M = 0;
-			int len_M = 0;
-
-			TLV_ref controllerPublicKeyTLV = getTLVForType(TLVTypePublicKey, tlvList);
-			TLV_ref controllerProofTLV = getTLVForType(TLVTypeProof, tlvList);
+			TLV_ref controllerPublicKeyTLV = getTLVForType(TLVTypePublicKey, requestTLVList);
+			TLV_ref controllerProofTLV = getTLVForType(TLVTypeProof, requestTLVList);
 
 			if (NULL == controllerPublicKeyTLV || NULL == controllerProofTLV) {
-				//todo: send error
-				break;
+				return HAP::BAD_REQUEST;
 			}
-			byte_string controllerPublickKey = controllerPublicKeyTLV->getValue();
 
-			srp_user_process_challenge(_pairingUserRef, _pairingSalt.data(),
-				_pairingSalt.size(), controllerPublickKey.data(), controllerPublickKey.size(), &bytes_M, &len_M);
+			byte_string controllerPublicKey = controllerPublicKeyTLV->getValue();
+			cstr* sharedSecretKey = NULL;
+
+			if (SRP_compute_key(_srpSessionRef, 
+								&sharedSecretKey, 
+								controllerPublicKey.data(), 
+								controllerPublicKey.size()) != SRP_SUCCESS) {
+				printf("SRP_compute_key failed\n");
+				return HAP::INTERNAL_ERROR;
+			}
 			
-			if (!bytes_M)
-			{
-				printf("User SRP-6a safety check violation\n");
-				//todo: send error
-				break;
+			//todo: save into byte_string. may be available srp->key
+			cstr_free(sharedSecretKey);
+
+			byte_string controllerProof = controllerProofTLV->getValue();
+			if (SRP_SUCCESS != SRP_verify(_srpSessionRef, controllerProof.data(), controllerProof.size())) {
+				printf("SRP_verify failed\n");
+				//todo: create AuthErr TLV
+				return HAP::BAD_REQUEST;
 			}
 
-			srp_user_verify_session(_pairingUserRef, controllerProofTLV->getValue().data());
-
-			if (!srp_user_is_authenticated(_pairingUserRef))
-			{
-				printf("srp authentication failed\n");
-				break;
+			cstr* accessoryProof = NULL;
+			if (SRP_SUCCESS != SRP_respond(_srpSessionRef, &accessoryProof)) {
+				printf("SRP_respond failed\n");
+				return HAP::INTERNAL_ERROR;
 			}
 
-			//setting accessory's proof
-			computeTLVsFromString(TLVTypePublicKey, bytes_M, len_M, responseTLVList);
-			//setting state
+			////setting accessory's proof
+			computeTLVsFromString(TLVTypeProof, 
+				accessoryProof->data, accessoryProof->length, responseTLVList);
+			////setting state
 			responseTLVList.push_back(createTLVForState(M4));
 
-			sendTLVToClient(client, responseTLVList);
-
+			cstr_free(accessoryProof);
 			break;
 		}
 		case M4:
@@ -185,10 +196,13 @@ HAPAuthenticationHandler::processSetupRequest(HAPClient& client, const TLVList& 
 			//todo: send error
 			break;
 	}
+
+	return HAP::SUCCESS;
 }
 
 void 
-HAPAuthenticationHandler::sendTLVToClient(HAPClient& client, const TLVList& tlvList)
+HAPAuthenticationHandler::sendTLVToClient(
+		HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList)
 {
 	byte_string messageBody;
 	for (TLVList::const_iterator iter = tlvList.begin(); iter < tlvList.end(); iter++) {
@@ -201,24 +215,8 @@ HAPAuthenticationHandler::sendTLVToClient(HAPClient& client, const TLVList& tlvL
 	}
 	printf("\n*******************************\n");
 
-	client.sendHeader(HAP::SUCCESS, messageBody.size(), HAP::HAPMessageContentTypeTLV);
-	client.printBytes(reinterpret_cast<char*>(messageBody.data()), messageBody.size());
-
-	TLVList tlvList1;
-	try {
-		byte_string::iterator begin = messageBody.begin();
-		TLV::parseSequence(begin, messageBody.end(), tlvList1);
-
-		for (TLVList::const_iterator iter = tlvList1.begin(); iter < tlvList1.end(); iter++) {
-			printf("T: %02hhx L:%d\n", (*iter)->getTag().at(0), (*iter)->length());
-		}
-	}
-	catch (const std::runtime_error& error) {
-		printf("runtime_error: %s\n", error.what());
-		//todo: send error
-		//client.sendHeader
-		return;
-	}
+	client.sendHeader(status, messageBody.size(), HAP::HAPMessageContentTypeTLV);
+	client.printBytes(reinterpret_cast<char*>(messageBody.data()), messageBody.size());	
 }
 
 TLV_ref
@@ -252,7 +250,7 @@ HAPAuthenticationHandler::getTLVForType(TLVType tlvType, const TLVList& tlvList)
 void 
 HAPAuthenticationHandler::computeTLVsFromString(
 							TLVType tlvType, 
-							const unsigned char* inputString, 
+							const char* inputString, 
 							int inputStringLength, 
 							TLVList& outputTLVList)
 {
@@ -282,4 +280,3 @@ void
 HAPAuthenticationHandler::initializeSRPSession(const byte_string& userName)
 {
 }
-
