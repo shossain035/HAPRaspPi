@@ -1,7 +1,6 @@
 #include "HAPAuthenticationUtility.h"
 #include <openssl/hmac.h>
 #include <nettle/chacha-poly1305.h>
-#include <nettle/sha1.h>
 #include <memory>
 
 bool 
@@ -73,15 +72,17 @@ HAPAuthenticationUtility::decryptControllerLTPK(
 	
 	std::shared_ptr<unsigned char> decryptedKeybuffer(new unsigned char[encryptedKey.size()]);
 	unsigned char* bufferRef = decryptedKeybuffer.get();
-	chacha_poly1305_decrypt(&ctx, encryptedKey.size(), bufferRef, encryptedKey.data());	
 	
-	decryptedKey.assign(bufferRef, bufferRef + encryptedKey.size());	
-	byte_string authTagComputed(ctx.block, ctx.block + authTag.size());
-
-	printString(encryptedKey, "encryptedKey");
-	printString(authTag, "authTag received");
-	printString(decryptedKey, "decryptedKey");
-	printString(authTagComputed, "authTag sent");
+	chacha_poly1305_decrypt(&ctx, encryptedKey.size(), bufferRef, encryptedKey.data());		
+	decryptedKey.assign(bufferRef, bufferRef + encryptedKey.size());
+		
+	byte_string authTagComputed;
+	computeChaChaPolyAuthTag(ctx, authTagComputed);
+	
+	if (authTagComputed != authTag) {
+		printf("auth tag mismatch\n");
+		return false;
+	}
 	
 	return true;
 }
@@ -94,18 +95,23 @@ HAPAuthenticationUtility::encryptAccessoryLTPK(
 	chacha_poly1305_ctx ctx;
 
 	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
-	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg05");
-	//chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
+	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
 	
 	std::shared_ptr<unsigned char> encryptedKeybuffer(new unsigned char[decryptedKey.size()]);
 	unsigned char* bufferRef = encryptedKeybuffer.get();
 	chacha_poly1305_encrypt(&ctx, decryptedKey.size(), bufferRef, decryptedKey.data());
 
 	encryptedKey.assign(bufferRef, bufferRef + decryptedKey.size());
-	authTag.assign(ctx.block, ctx.block + ctx.auth_size);
+	computeChaChaPolyAuthTag(ctx, authTag);
 	
-	printString(encryptedKey, "encryptedKey");
-	printString(authTag, "authTag sent");
-
 	return true;
 }
+
+void
+HAPAuthenticationUtility::computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag)
+{
+	unsigned char authTagBuffer[CHACHA_POLY1305_DIGEST_SIZE];
+	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagBuffer);
+	authTag.assign(authTagBuffer, authTagBuffer + CHACHA_POLY1305_DIGEST_SIZE);
+}
+

@@ -2,6 +2,8 @@
 #define _HAPAUTHENTICATIONUTILITY_H_
 #include "byte_string.h"
 
+struct chacha_poly1305_ctx;
+
 class HAPAuthenticationUtility {
 public:
 	static bool computeEncryptionKeyFromSRPSharedSecret(
@@ -13,7 +15,8 @@ public:
 	static bool encryptAccessoryLTPK(
 		const byte_string& sharedEncryptionDecryptionKey,
 		const byte_string& decryptedKey, byte_string& authTag, byte_string& encryptedKey);
- 
+
 private: 	
+	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);
 };
 #endif
