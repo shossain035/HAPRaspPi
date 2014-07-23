@@ -22,6 +22,7 @@ HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 
 HAPAuthenticationHandler::~HAPAuthenticationHandler()
 {
+	SRP_free(_srpSessionRef);
 	SRP_finalize_library();
 }
 
@@ -182,10 +183,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			////setting state
 			responseTLVList.push_back(createTLVForState(M4));
 
-			cstr_free(accessoryProof);
-			//srp session is over
-			SRP_free(_srpSessionRef);
-
+			cstr_free(accessoryProof);			
 			break;
 		}
 		case M5:
@@ -204,6 +202,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 
+			//generate and save Controller LTPK, accessories LTSK
 			byte_string controllerDecryptedKey;
 			if (!HAPAuthenticationUtility::decryptControllerLTPK(
 					sharedEncryptionDecryptionKey,
@@ -214,15 +213,16 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::BAD_REQUEST;
 				//todo: create auth error tlv
 			}
-
-			printf("decrypted controller key\n");
-
+			
 			byte_string auth_tag, accessoryEncryptedKey;
 			HAPAuthenticationUtility::encryptAccessoryLTPK(
 				sharedEncryptionDecryptionKey, /*change*/controllerDecryptedKey, auth_tag, accessoryEncryptedKey);
 
 			////setting state
 			responseTLVList.push_back(createTLVForState(M6));
+			
+			//srp session is over
+			SRP_free(_srpSessionRef);
 			break;
 		}
 		default:
