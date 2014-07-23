@@ -1,4 +1,5 @@
 #include "HAPAuthenticationHandler.h"
+#include "HAPAuthenticationUtility.h"
 
 extern "C"
 {
@@ -32,14 +33,8 @@ HAPAuthenticationHandler::setupPair(HAPClient& client)
 	const char* message = client.getMessage();
 	int messageLength = client.getMessageLength();
 
-	printf("length: %d\n", messageLength);
-	printf("request body:\n");
-
-	for (int i = 0; i<messageLength; i++) {
-		printf("%02hhx ", static_cast<unsigned char> (message[i]));
-		bytes.push_back(message[i]);
-	}
-	printf("\n*******************************\n");
+	bytes.assign(message, message + messageLength);
+	printString(bytes, "request");
 
 	TLVList tlvList;		
 	try {
@@ -162,11 +157,10 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			}
 			
 			//save shared secret session key
-			_srpSessionSecretKey.clear();
-			for (int i = 0; i<sharedSecretKey->length ; i++) {
-				_srpSessionSecretKey.push_back(sharedSecretKey->data[i]);
-			}
-
+			_srpSessionSecretKey.assign(
+				sharedSecretKey->data, 
+				sharedSecretKey->data + sharedSecretKey->length);
+			
 			cstr_free(sharedSecretKey);
 
 			byte_string controllerProof = controllerProofTLV->getValue();
@@ -199,6 +193,34 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			TLV_ref controllerEncryptedLTPK = getTLVForType(TLVTypeEncryptedData, requestTLVList);
 			TLV_ref controllerAuthTag = getTLVForType(TLVTypeAuthTag, requestTLVList);
 
+			if (controllerEncryptedLTPK == NULL || controllerAuthTag == NULL) {
+				return HAP::BAD_REQUEST;
+			}
+			//get the encryptionKey
+			byte_string sharedEncryptionDecryptionKey;
+			if (!HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
+				_srpSessionSecretKey, sharedEncryptionDecryptionKey)) {
+				printf("failed to create encryptionKey\n");
+				return HAP::INTERNAL_ERROR;
+			}
+
+			byte_string controllerDecryptedKey;
+			if (!HAPAuthenticationUtility::decryptControllerLTPK(
+					sharedEncryptionDecryptionKey,
+					controllerEncryptedLTPK->getValue(), 
+					controllerAuthTag->getValue(), 
+					controllerDecryptedKey)) {
+				printf("failed to decrypt controller key\n");
+				return HAP::BAD_REQUEST;
+				//todo: create auth error tlv
+			}
+
+			printf("decrypted controller key\n");
+
+			byte_string auth_tag, accessoryEncryptedKey;
+			HAPAuthenticationUtility::encryptAccessoryLTPK(
+				sharedEncryptionDecryptionKey, /*change*/controllerDecryptedKey, auth_tag, accessoryEncryptedKey);
+
 			////setting state
 			responseTLVList.push_back(createTLVForState(M6));
 			break;
@@ -217,15 +239,11 @@ HAPAuthenticationHandler::sendTLVToClient(
 		HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList)
 {
 	byte_string messageBody;
-	for (TLVList::const_iterator iter = tlvList.begin(); iter < tlvList.end(); iter++) {
-		(*iter)->encode(messageBody);
+	for (TLV_ref tlv : tlvList) {
+		tlv->encode(messageBody);
 	}
 
-	printf("response body:\n");
-	for (byte_string::iterator it = messageBody.begin(); it != messageBody.end(); ++it) {
-		printf("%02hhx ", (*it));
-	}
-	printf("\n*******************************\n");
+	printString(messageBody, "response");
 
 	client.sendHeader(status, messageBody.size(), HAP::HAPMessageContentTypeTLV);
 	client.printBytes(reinterpret_cast<char*>(messageBody.data()), messageBody.size());	
@@ -236,12 +254,12 @@ HAPAuthenticationHandler::getTLVForType(TLVType tlvType, const TLVList& tlvList)
 {
 	TLVList matchedItems;
 
-	for (TLVList::const_iterator iter = tlvList.begin(); iter < tlvList.end(); iter++) {
-		if ((*iter)->getTag().at(0) == tlvType) {
-			matchedItems.push_back(*iter);
+	for (TLV_ref tlv : tlvList) {
+		if (tlv->getTag().at(0) == tlvType) {
+			matchedItems.push_back(tlv);
 		}
 	}
-
+	
 	if (matchedItems.size() == 1) {
 		return matchedItems.at(0);
 	}
@@ -252,9 +270,10 @@ HAPAuthenticationHandler::getTLVForType(TLVType tlvType, const TLVList& tlvList)
 
 	//combine contiguous TLVs into one
 	byte_string out;
-	for (TLVList::const_iterator iter = matchedItems.begin(); iter < matchedItems.end(); iter++) {
-		out += (*iter)->getValue();
+	for (TLV_ref tlv : matchedItems) {
+		out += tlv->getValue();
 	}
+
 
 	return TLV_ref(new TLV(tlvType, out));
 }

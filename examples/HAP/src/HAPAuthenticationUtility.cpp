@@ -1,12 +1,15 @@
 #include "HAPAuthenticationUtility.h"
 #include <openssl/hmac.h>
+#include <nettle/chacha-poly1305.h>
+#include <nettle/sha1.h>
+#include <memory>
 
 bool 
 HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
 	const byte_string& sharedSecretKey, byte_string& encryptionKey)
 {
-	char* salt = "Pair-Setup-Salt";
-	char* info = "Pair-Setup-Encryption-Key";
+	char salt[] = "Pair-Setup-Salt";
+	char info[] = "Pair-Setup-Encryption-Key";
 	const unsigned int outputSize = 32;
 	unsigned int pseudoRandomKeyLength = 0;
 	encryptionKey.clear();
@@ -46,12 +49,63 @@ HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
 		unsigned char* currentDigest = HMAC(EVP_sha512(), pseudoRandomKey, pseudoRandomKeyLength,
 			previousDigest.data(), previousDigest.size(), NULL, &digestLength);
 
-		previousDigest.clear();
-		for (unsigned int i = 0; i < digestLength; i++) {
-			previousDigest += currentDigest[i];
-			if (i < outputSize) {
-				encryptionKey += currentDigest[i];
-			}			
-		}
+		previousDigest.assign(currentDigest, currentDigest + digestLength);
+		encryptionKey.insert(encryptionKey.end(), currentDigest, currentDigest + digestLength);
+		
+		if (encryptionKey.size() >= outputSize) {
+			encryptionKey.resize(outputSize);
+			return true;
+		}		
 	}
+
+	return true;
+}
+
+bool 
+HAPAuthenticationUtility::decryptControllerLTPK(
+	const byte_string& sharedEncryptionDecryptionKey,
+	const byte_string& encryptedKey, const byte_string& authTag, byte_string& decryptedKey)
+{
+	chacha_poly1305_ctx ctx;
+	
+	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
+	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg05");
+	
+	std::shared_ptr<unsigned char> decryptedKeybuffer(new unsigned char[encryptedKey.size()]);
+	unsigned char* bufferRef = decryptedKeybuffer.get();
+	chacha_poly1305_decrypt(&ctx, encryptedKey.size(), bufferRef, encryptedKey.data());	
+	
+	decryptedKey.assign(bufferRef, bufferRef + encryptedKey.size());	
+	byte_string authTagComputed(ctx.block, ctx.block + authTag.size());
+
+	printString(encryptedKey, "encryptedKey");
+	printString(authTag, "authTag received");
+	printString(decryptedKey, "decryptedKey");
+	printString(authTagComputed, "authTag sent");
+	
+	return true;
+}
+
+bool
+HAPAuthenticationUtility::encryptAccessoryLTPK(
+	const byte_string& sharedEncryptionDecryptionKey,
+	const byte_string& decryptedKey, byte_string& authTag, byte_string& encryptedKey)
+{
+	chacha_poly1305_ctx ctx;
+
+	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
+	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg05");
+	//chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
+	
+	std::shared_ptr<unsigned char> encryptedKeybuffer(new unsigned char[decryptedKey.size()]);
+	unsigned char* bufferRef = encryptedKeybuffer.get();
+	chacha_poly1305_encrypt(&ctx, decryptedKey.size(), bufferRef, decryptedKey.data());
+
+	encryptedKey.assign(bufferRef, bufferRef + decryptedKey.size());
+	authTag.assign(ctx.block, ctx.block + ctx.auth_size);
+	
+	printString(encryptedKey, "encryptedKey");
+	printString(authTag, "authTag sent");
+
+	return true;
 }

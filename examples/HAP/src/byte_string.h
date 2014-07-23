@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /** Utility definition and additional operators to make working with
  * sequences of bytes more easy and less error/leak-prone
@@ -76,5 +77,15 @@ inline unsigned char *malloc_copy(const byte_string &l) {
 		return NULL;
 	memcpy(output, &l[0], l.size());
 	return output;
+}
+
+inline void printString(const byte_string &data, const char* tag) {
+	printf("%s:\n", tag);
+	printf("length: %d\n", data.size());
+
+	for (uint8_t byte : data) {
+		printf("%02hhx ", byte);
+	}
+	printf("\n*******************************\n");
 }
 #endif
