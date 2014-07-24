@@ -133,8 +133,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			////setting state
 			responseTLVList.push_back(createTLVForState(M2));
 
-			cstr_free(accessoryPublicKey);
-			
+			cstr_free(accessoryPublicKey);			
 			break;
 		}
 		case M3:
@@ -202,7 +201,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 
-			//generate and save Controller LTPK, accessories LTSK
+			//decryptController LTPK
 			byte_string controllerDecryptedKey;
 			if (!HAPAuthenticationUtility::decryptControllerLTPK(
 					sharedEncryptionDecryptionKey,
@@ -214,9 +213,11 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				//todo: create auth error tlv
 			}
 			
+			byte_string accessoryDecryptedLTPK, accessoryDecryptedLTSK;
+
 			byte_string auth_tag, accessoryEncryptedKey;
 			HAPAuthenticationUtility::encryptAccessoryLTPK(
-				sharedEncryptionDecryptionKey, /*change*/controllerDecryptedKey, auth_tag, accessoryEncryptedKey);
+				sharedEncryptionDecryptionKey, accessoryDecryptedLTPK, auth_tag, accessoryEncryptedKey);
 
 			////setting state
 			responseTLVList.push_back(createTLVForState(M6));

@@ -1,6 +1,8 @@
 #include "HAPAuthenticationUtility.h"
 #include <openssl/hmac.h>
 #include <nettle/chacha-poly1305.h>
+//#include <nettle/ecdsa.h>
+//#include <nettle/knuth-lfib.h>
 #include <memory>
 
 bool 
@@ -106,6 +108,34 @@ HAPAuthenticationUtility::encryptAccessoryLTPK(
 	
 	return true;
 }
+
+/*
+bool 
+generateKeyPair(byte_string& publicKey, byte_string& secretKey)
+{
+	knuth_lfib_ctx randomCtx;
+	knuth_lfib_init(&randomCtx, 4711);
+
+	ecc_point eccPublicKey;
+	ecc_scalar eccSecretKey;
+
+	ecc_curve curve = ecc_curve->;
+	struct ecc_point pub;
+	struct ecc_scalar key;
+
+	if (verbose)
+		fprintf(stderr, "Curve %d\n", ecc->bit_size);
+
+	ecc_point_init(&pub, ecc);
+	ecc_scalar_init(&key, ecc);
+
+	ecdsa_generate_keypair(&pub, &key,
+		&rctx,
+		(nettle_random_func *)knuth_lfib_random);
+
+	return true;
+}
+*/
 
 void
 HAPAuthenticationUtility::computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag)

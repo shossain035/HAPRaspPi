@@ -16,6 +16,9 @@ public:
 		const byte_string& sharedEncryptionDecryptionKey,
 		const byte_string& decryptedKey, byte_string& authTag, byte_string& encryptedKey);
 
+	//static bool generateKeyPair(byte_string& publicKey, byte_string& secretKey);
+	static bool generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey);
+
 private: 	
 	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);
 };
