@@ -4,6 +4,37 @@
 
 struct chacha_poly1305_ctx;
 
+class HAPPairing {
+public:
+	HAPPairing(const byte_string& controllerUsername) 
+		: _controllerUsername(controllerUsername)
+	{
+	}
+
+	HAPPairing(const byte_string& controllerUsername, 
+			   const byte_string& controllerLongTermPublicKey,
+		       const byte_string& accessoryLongTermSecretKey)
+		: _controllerUsername(controllerUsername), 
+		  _controllerLongTermPublicKey(controllerLongTermPublicKey),
+		  _accessoryLongTermSecretKey(accessoryLongTermSecretKey)
+	{
+	}
+
+	bool savePairing();
+	bool retievePairing();
+	
+	const byte_string& controllerUsername() { return _controllerUsername; }
+	const byte_string& controllerLongTermPublicKey()  { return _controllerLongTermPublicKey; }
+	const byte_string& accessoryLongTermSecretKey() { return _accessoryLongTermSecretKey; }
+
+private:
+	byte_string _controllerUsername;
+	byte_string _controllerLongTermPublicKey;
+	byte_string _accessoryLongTermSecretKey;
+
+	static const char* _pairingStorePath;
+};
+
 class HAPAuthenticationUtility {
 public:
 	static bool computeEncryptionKeyFromSRPSharedSecret(
@@ -19,7 +50,9 @@ public:
 	//static bool generateKeyPair(byte_string& publicKey, byte_string& secretKey);
 	static bool generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey);
 
+	static void generateRandomBytes(byte_string& randomBytes, size_t count);
+	
 private: 	
-	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);
+	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);			
 };
 #endif

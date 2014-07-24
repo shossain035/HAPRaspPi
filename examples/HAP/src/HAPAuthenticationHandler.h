@@ -49,16 +49,23 @@ public:
 private:
 	HAP::HAPStatus processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
 
-	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, const char* inputString, int inputStringLength, TLVList& outputTLVList);
+	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, 
+		const byte_string& inputString, TLVList& outputTLVList);
+	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, 
+		const char* inputString, int inputStringLength, TLVList& outputTLVList);
+
 	TLV_ref getTLVForType(HAPAuthentication::TLVType tlvType, const TLVList& tlvList);
 	TLV_ref createTLVForState(HAPAuthentication::PairingState state);
+	
 	void sendTLVToClient(HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList);
-
+	
+	bool prepareEncryptedAccessoryData(const byte_string& sharedEncryptionDecryptionKey,
+				const byte_string& accessoryLongTermPublicKey, TLVList& responseTLVList);
 	
 	void initializeSRPSession(const byte_string& username);
 	//todo: read from file
 	static const char * _password;
-	static const char * _accessoryUsername;
+	static byte_string _accessoryUsername;
 
 	SRP* _srpSessionRef;
 	byte_string _srpSessionSecretKey;

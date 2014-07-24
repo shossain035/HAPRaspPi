@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <fstream>
 
 /** Utility definition and additional operators to make working with
  * sequences of bytes more easy and less error/leak-prone
@@ -88,4 +89,21 @@ inline void printString(const byte_string &data, const char* tag) {
 	}
 	printf("\n*******************************\n");
 }
+
+inline void writeToFile(std::ofstream& outputFile, const byte_string& data) {
+	size_t size = data.size();
+	
+	outputFile.write(reinterpret_cast<const char *>(&size), sizeof(size));
+	outputFile.write(reinterpret_cast<const char *>(data.data()), size);
+}
+
+inline void readFromFile(std::ifstream& inputFile, byte_string& data) {
+	size_t size;
+	
+	inputFile.read(reinterpret_cast<char *>(&size), sizeof(size));
+	data.resize(size);
+
+	inputFile.read(reinterpret_cast<char *>(data.data()), size);
+}
+
 #endif
