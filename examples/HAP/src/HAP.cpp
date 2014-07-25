@@ -45,6 +45,19 @@ public:
 	}
 };
 
+class PairVerifyHandler : public BaseHandler
+{
+public:
+	PairVerifyHandler(HAPServer& hapServer) : BaseHandler(hapServer) {}
+	bool handlePost(CivetServer *server, struct mg_connection *conn) {
+		printf("POST pair-verify\n");
+
+		//HAPClient client(conn);
+		//_hapServer.setupPair(client);
+		return true;
+	}
+};
+
 class AccessoriesHandler : public BaseHandler
 {
 public:
@@ -134,7 +147,8 @@ int main(int argc, char *argv[])
 	server.addHandler(PAIR_SETUP_URI, new PairSetupHandler(hapServer));
 
 	server.addHandler(EXIT_URI, new ExitHandler());
-	
+	server.addHandler("/**", new PairVerifyHandler(hapServer));
+
 	while (!exitNow) {
 #ifdef _WIN32
 		Sleep(1000);

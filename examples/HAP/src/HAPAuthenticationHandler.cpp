@@ -25,7 +25,10 @@ HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 
 HAPAuthenticationHandler::~HAPAuthenticationHandler()
 {
+	//todo: put spr clean up inside a function
 	SRP_free(_srpSessionRef);
+	_srpSessionRef = NULL;
+
 	SRP_finalize_library();
 }
 
@@ -37,7 +40,7 @@ HAPAuthenticationHandler::setupPair(HAPClient& client)
 	int messageLength = client.getMessageLength();
 
 	byte_string bytes(message, message + messageLength);
-	printString(bytes, "request");
+	//printString(bytes, "request");
 
 	TLVList tlvList;		
 	try {
@@ -88,6 +91,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				printf("failed to clear srp session\n");
 				return HAP::INTERNAL_ERROR;
 			}
+			printf("freed srp session\n");
 			_srpSessionRef = SRP_new(SRP6a_server_method());
 			
 			//set username
@@ -229,6 +233,9 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 			
+			printString(controllerDecryptedLongTermPublicKey, "controller public");
+			printString(accessoryLongTermPublicKey, "accessory public");
+
 			//prepare response
 			if (!prepareEncryptedAccessoryData(
 				sharedEncryptionDecryptionKey, accessoryLongTermPublicKey, responseTLVList)) {
@@ -237,8 +244,9 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			}
 			
 
-			//srp session is over
+			//srp session is over			
 			SRP_free(_srpSessionRef);
+			_srpSessionRef = NULL;
 			break;
 		}
 		default:
@@ -259,7 +267,7 @@ HAPAuthenticationHandler::sendTLVToClient(
 		tlv->encode(messageBody);
 	}
 
-	printString(messageBody, "response");
+	//printString(messageBody, "response");
 
 	client.sendHeader(status, messageBody.size(), HAP::HAPMessageContentTypeTLV);
 	client.printBytes(reinterpret_cast<char*>(messageBody.data()), messageBody.size());	
