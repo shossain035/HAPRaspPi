@@ -19,6 +19,7 @@
 #define ACCESSORIES_URI "/accessories$"
 #define CHARACTERISTIC_URI "/accessories/**/services/**/characteristics/**$"
 #define PAIR_SETUP_URI "/pair-setup$"
+#define PAIR_VERIFY_URI "/pair-verify$"
 
 #define EXIT_URI "/exit"
 bool exitNow = false;
@@ -145,10 +146,10 @@ int main(int argc, char *argv[])
 	server.addHandler(ACCESSORIES_URI, new AccessoriesHandler(hapServer));
 	server.addHandler(CHARACTERISTIC_URI, new CharacteristicHandler(hapServer));
 	server.addHandler(PAIR_SETUP_URI, new PairSetupHandler(hapServer));
+	server.addHandler(PAIR_VERIFY_URI, new PairVerifyHandler(hapServer));
 
 	server.addHandler(EXIT_URI, new ExitHandler());
-	server.addHandler("/**", new PairVerifyHandler(hapServer));
-
+	
 	while (!exitNow) {
 #ifdef _WIN32
 		Sleep(1000);
