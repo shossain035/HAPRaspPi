@@ -161,7 +161,7 @@ void
 HAPAuthenticationUtility::generateRandomBytes(byte_string& randomBytes, size_t count)
 {
 	knuth_lfib_ctx randomCtx;
-	knuth_lfib_init(&randomCtx, 4711);
+	knuth_lfib_init(&randomCtx, rand());
 
 	randomBytes.resize(count);
 	knuth_lfib_random(&randomCtx, count, randomBytes.data());
