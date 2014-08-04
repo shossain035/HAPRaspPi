@@ -40,7 +40,7 @@ HAPAuthenticationHandler::setupPair(HAPClient& client)
 	int messageLength = client.getMessageLength();
 
 	byte_string bytes(message, message + messageLength);
-	//printString(bytes, "request");
+	printString(bytes, "request");
 
 	TLVList tlvList;		
 	try {
@@ -91,7 +91,6 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				printf("failed to clear srp session\n");
 				return HAP::INTERNAL_ERROR;
 			}
-			printf("freed srp session\n");
 			_srpSessionRef = SRP_new(SRP6a_server_method());
 			
 			//set username
