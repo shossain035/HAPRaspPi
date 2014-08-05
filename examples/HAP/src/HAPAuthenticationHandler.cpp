@@ -18,7 +18,7 @@ byte_string HAPAuthenticationHandler::_accessoryUsername;
 
 HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 {
-	char accessoryUsername[] = "0d0dc4e8-2b24-4f85-b015-62ea07286d50";
+	char accessoryUsername[] = "4e:06:19:0e:c0:77";
 	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));
 	SRP_initialize_library();
 }
