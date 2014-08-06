@@ -343,7 +343,6 @@ HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TL
 			HAPAuthenticationUtility::
 				generateSharedSecretUsingCurve25519(controllerPublicKey->getValue(), accessorySecretKey, sharedSecret);
 
-			printString(sharedSecret, "Curve25519 shared secret");
 			//Station-To-Station YX
 			byte_string stationToStationYX;
 			stationToStationYX += accessoryPublicKey;
@@ -365,7 +364,9 @@ HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TL
 		}
 		case M3:
 		{
-			return HAP::BAD_REQUEST;
+			//todo: verify
+			////setting state
+			responseTLVList.push_back(createTLVForState(M4));
 			break;
 		}
 		default:
