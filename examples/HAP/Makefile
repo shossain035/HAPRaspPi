@@ -10,7 +10,7 @@ TOP = ../..
 CIVETWEB_LIB = libcivetweb.a
 
 CFLAGS = -I$(TOP)/include $(COPT) -std=c++0x
-LIBS = /usr/local/lib/libsrp.a -lpthread -lssl -lcrypto -lhogweed -lnettle -lgmp lib/ed25519.o lib/curve25519-donna.a  -mbits
+LIBS = /usr/local/lib/libsrp.a -lpthread -lssl -lcrypto -lhogweed -lnettle -lgmp lib/ed25519.o -mbits
 
 include $(TOP)/resources/Makefile.in-os
 
