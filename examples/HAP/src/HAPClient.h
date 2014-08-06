@@ -31,8 +31,8 @@ public:
 
 	void printBytes(const char * bytes, size_t length);
 
-	const char* getMessage();
-	int getMessageLength();
+	const char* getMessage() const;
+	int getMessageLength() const;
 
 	void sendHeader(HAP::HAPStatus status, size_t contentLength, 
 		HAP::HAPMessageContentType contentType = HAP::HAPMessageContentTypeJSON);

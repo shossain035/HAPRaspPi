@@ -18,7 +18,7 @@ byte_string HAPAuthenticationHandler::_accessoryUsername;
 
 HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
 {
-	char accessoryUsername[] = "4e:06:19:0e:c0:77";
+	char accessoryUsername[] = "4e:06:19:0e:c0:87";
 	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));
 	SRP_initialize_library();
 }
@@ -36,29 +36,33 @@ void
 HAPAuthenticationHandler::setupPair(HAPClient& client)
 {
 	//todo: process 429. simultaneous pairing attempts will break the system.
-	const char* message = client.getMessage();
-	int messageLength = client.getMessageLength();
+	TLVList requestTLVList, responseTLVList;
+	HAP::HAPStatus parsingResult = parseRequestBody(client, requestTLVList);
 
-	byte_string bytes(message, message + messageLength);
-	printString(bytes, "request");
-
-	TLVList tlvList;		
-	try {
-		byte_string::iterator begin = bytes.begin();
-
-		TLV::parseSequence(begin, bytes.end(), tlvList);
-	}
-	catch (const std::runtime_error& error) {
-		printf("runtime_error: %s\n", error.what());
-		//todo: send error
-		//client.sendHeader
+	if (parsingResult != HAP::SUCCESS) {
+		sendTLVToClient(client, parsingResult, responseTLVList);
 		return;
 	}
 
-	TLVList responseTLVList;
-	sendTLVToClient(client, processSetupRequest(tlvList, responseTLVList), 
+	sendTLVToClient(client, processSetupRequest(requestTLVList, responseTLVList),
 						responseTLVList);		
 }
+
+void
+HAPAuthenticationHandler::verifyPair(HAPClient& client)
+{
+	TLVList requestTLVList, responseTLVList;
+	HAP::HAPStatus parsingResult = parseRequestBody(client, requestTLVList);
+
+	if (parsingResult != HAP::SUCCESS) {
+		sendTLVToClient(client, parsingResult, responseTLVList);
+		return;
+	}
+
+	sendTLVToClient(client, processVerifyRequest(requestTLVList, responseTLVList),
+		responseTLVList);
+}
+
 
 
 HAP::HAPStatus
@@ -226,7 +230,8 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				_srpSessionRef->username->data + _srpSessionRef->username->length);
 			//save pairing
 			HAPPairing pairing(controllerUsername,
-							   controllerDecryptedLongTermPublicKey, 
+							   controllerDecryptedLongTermPublicKey,
+							   accessoryLongTermPublicKey,
 							   accessoryLongTermSecretKey);
 			if (!pairing.savePairing()) {
 				return HAP::INTERNAL_ERROR;
@@ -301,6 +306,100 @@ HAPAuthenticationHandler::getTLVForType(TLVType tlvType, const TLVList& tlvList)
 	return TLV_ref(new TLV(tlvType, out));
 }
 
+
+HAP::HAPStatus
+HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TLVList& responseTLVList)
+{
+	TLV_ref stateTLV = getTLVForType(TLVTypeState, requestTLVList);
+	if (NULL == stateTLV) {
+		printf("empty state tlv\n");
+		//todo: send error
+		return HAP::BAD_REQUEST;
+	}
+
+	uint8_t tlvState = stateTLV->getValue().at(0);
+	printf("state: %02hhx\n", tlvState);
+
+	switch (tlvState) {
+		case M1:
+		{
+			TLV_ref controllerUsername = getTLVForType(TLVTypeUser, requestTLVList);
+			TLV_ref controllerPublicKey = getTLVForType(TLVTypePublicKey, requestTLVList);
+
+			if (NULL == controllerUsername || NULL == controllerPublicKey) {
+				//todo: send error
+				return HAP::BAD_REQUEST;
+			}
+
+			HAPPairing pairing(controllerUsername->getValue());
+			if (!pairing.retievePairing()) {
+				//send UnknownPeerErr
+				return HAP::BAD_REQUEST;
+			}
+			
+			byte_string accessoryPublicKey, accessorySecretKey, sharedSecret, accessoryProof;
+			
+			HAPAuthenticationUtility::generateKeyPairUsingCurve25519(accessoryPublicKey, accessorySecretKey);
+			HAPAuthenticationUtility::
+				generateSharedSecretUsingCurve25519(controllerPublicKey->getValue(), accessorySecretKey, sharedSecret);
+
+			printString(sharedSecret, "Curve25519 shared secret");
+			//Station-To-Station YX
+			byte_string stationToStationYX;
+			stationToStationYX += accessoryPublicKey;
+			stationToStationYX += controllerPublicKey->getValue();
+
+			HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
+				stationToStationYX, pairing.accessoryLongTermPublicKey(), pairing.accessoryLongTermSecretKey(),
+				sharedSecret, accessoryProof);
+
+			////setting accessory's username
+			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeUser, _accessoryUsername)));
+			////setting accessory's public key			
+			computeTLVsFromString(TLVTypePublicKey, accessoryPublicKey, responseTLVList);
+			computeTLVsFromString(TLVTypeProof, accessoryProof, responseTLVList);
+			////setting state
+			responseTLVList.push_back(createTLVForState(M2));
+
+			break;
+		}
+		case M3:
+		{
+			return HAP::BAD_REQUEST;
+			break;
+		}
+		default:
+			printf("no matching state found\n");
+			//todo: send error
+			return HAP::BAD_REQUEST;
+	}
+
+	return HAP::SUCCESS;
+}
+
+HAP::HAPStatus
+HAPAuthenticationHandler::parseRequestBody(const HAPClient& client, TLVList& tlvList)
+{
+	const char* message = client.getMessage();
+	int messageLength = client.getMessageLength();
+
+	byte_string bytes(message, message + messageLength);
+	printString(bytes, "request");
+
+	try {
+		byte_string::iterator begin = bytes.begin();
+
+		TLV::parseSequence(begin, bytes.end(), tlvList);
+	}
+	catch (const std::runtime_error& error) {
+		printf("runtime_error: %s\n", error.what());
+		return HAP::BAD_REQUEST;
+	}
+
+	return HAP::SUCCESS;
+}
+
+
 void
 HAPAuthenticationHandler::computeTLVsFromString(TLVType tlvType,
 		const byte_string& inputString, TLVList& outputTLVList)
@@ -338,10 +437,6 @@ HAPAuthenticationHandler::createTLVForState(PairingState state)
 	return TLV_ref(new TLV(TLVTypeState, stateValue));
 }
 
-void 
-HAPAuthenticationHandler::initializeSRPSession(const byte_string& username)
-{
-}
 
 bool
 HAPAuthenticationHandler::prepareEncryptedAccessoryData(

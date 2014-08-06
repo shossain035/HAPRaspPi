@@ -17,6 +17,8 @@ public:
 		int accessoryId, int serviceId, int characteristicId);
 
 	void setupPair(HAPClient& client);
+	void verifyPair(HAPClient& client);
+
 	~HAPServer();
 private:
 	HAPCharacteristic* getCharacteristic(

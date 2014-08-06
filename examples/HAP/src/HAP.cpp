@@ -53,8 +53,8 @@ public:
 	bool handlePost(CivetServer *server, struct mg_connection *conn) {
 		printf("POST pair-verify\n");
 
-		//HAPClient client(conn);
-		//_hapServer.setupPair(client);
+		HAPClient client(conn);
+		_hapServer.verifyPair(client);
 		return true;
 	}
 };

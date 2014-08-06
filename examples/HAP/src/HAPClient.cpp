@@ -79,12 +79,12 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 	println();
 }
 
-const char* HAPClient::getMessage() 
+const char* HAPClient::getMessage() const
 {
 	return CivetServer::getBody(_conn);
 }
 
-int HAPClient::getMessageLength()
+int HAPClient::getMessageLength() const
 {
 	return CivetServer::getContentLength(_conn);;
 }

@@ -41,13 +41,17 @@ class HAPAuthenticationHandler {
 public:
 	HAPAuthenticationHandler();
 	void setupPair(HAPClient& client);
-	//void verifyPair(HAPClient& client);
+	void verifyPair(HAPClient& client);
+
 	//char* decryptMessage(HAPClient& client);
 	//char* encryptMessage(HAPClient& client);
 
 	virtual ~HAPAuthenticationHandler();
 private:
 	HAP::HAPStatus processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
+	HAP::HAPStatus processVerifyRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
+
+	HAP::HAPStatus parseRequestBody(const HAPClient& client, TLVList& tlvList);
 
 	void computeTLVsFromString(HAPAuthentication::TLVType tlvType, 
 		const byte_string& inputString, TLVList& outputTLVList);
@@ -62,7 +66,6 @@ private:
 	bool prepareEncryptedAccessoryData(const byte_string& sharedEncryptionDecryptionKey,
 				const byte_string& accessoryLongTermPublicKey, TLVList& responseTLVList);
 	
-	void initializeSRPSession(const byte_string& username);
 	//todo: read from file
 	static const char * _password;
 	static byte_string _accessoryUsername;

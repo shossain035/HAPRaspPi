@@ -96,6 +96,12 @@ void HAPServer::setupPair(HAPClient& client)
 	_authenticationHAndlerHandler.setupPair(client);
 }
 
+void HAPServer::verifyPair(HAPClient& client)
+{
+	_authenticationHAndlerHandler.verifyPair(client);
+}
+
+
 HAPServer::~HAPServer()
 {
 	for (int i = 0; i < _accessoryCount; i++) {
