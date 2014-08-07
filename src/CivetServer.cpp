@@ -109,6 +109,37 @@ void CivetServer::addHandler(const std::string &uri, CivetHandler *handler)
     mg_set_request_handler(context, uri.c_str(), requestHandler, handler);
 }
 
+void CivetServer::getSharedSecretForSession(struct mg_connection *conn,
+		unsigned char *sharedSecretForSession)
+{
+	mg_request_info *request_info = mg_get_request_info(conn);
+
+	memcpy(sharedSecretForSession, request_info->sharedSecretForSession,
+			SESSION_SECURITY_KEY_LENGTH);
+}
+
+void CivetServer::setSharedSecretForSession(struct mg_connection *conn, 
+		const unsigned char *sharedSecretForSession)
+{
+	mg_request_info *request_info = mg_get_request_info(conn);
+
+	memcpy(request_info->sharedSecretForSession,
+			sharedSecretForSession, SESSION_SECURITY_KEY_LENGTH);
+}
+
+void CivetServer::setSessionKeys(struct mg_connection *conn,
+					const unsigned char *accessoryToControllerKey, 
+					const unsigned char *controllerToAccessoryKey)
+{
+	mg_request_info *request_info = mg_get_request_info(conn);
+
+	request_info->isSessionSecured = 1;
+	memcpy(request_info->accessoryToControllerKey, 
+			accessoryToControllerKey, SESSION_SECURITY_KEY_LENGTH);
+	memcpy(request_info->controllerToAccessoryKey,
+			controllerToAccessoryKey, SESSION_SECURITY_KEY_LENGTH);
+}
+
 void CivetServer::removeHandler(const std::string &uri)
 {
     mg_set_request_handler(context, uri.c_str(), NULL, NULL);

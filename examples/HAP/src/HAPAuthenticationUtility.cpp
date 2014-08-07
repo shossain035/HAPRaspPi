@@ -125,6 +125,14 @@ HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
 
 
 bool 
+HAPAuthenticationUtility::generateSessionKeys(const byte_string& sharedSecretForSession,
+		byte_string& accessoryToControllerKey, byte_string& controllerToAccessoryKey)
+{
+	return deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Read-Info", accessoryToControllerKey)
+		&& deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Write-Info", controllerToAccessoryKey);
+}
+
+bool 
 HAPAuthenticationUtility::generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey)
 {
 	generateRandomBytes(secretKey, sizeof(ed25519_secret_key));

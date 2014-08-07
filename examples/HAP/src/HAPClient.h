@@ -37,6 +37,12 @@ public:
 	void sendHeader(HAP::HAPStatus status, size_t contentLength, 
 		HAP::HAPMessageContentType contentType = HAP::HAPMessageContentTypeJSON);
 	void sendHeaderWithoutBody(HAP::HAPStatus status);
+
+	void getSharedSecretForSession(unsigned char *sharedSecretForSession);
+	void setSharedSecretForSession(const unsigned char *sharedSecretForSession);
+	void setSessionKeys(
+		const unsigned char *accessoryToControllerKey, const unsigned char *controllerToAccessoryKey);
+
 private:
 	struct mg_connection* _conn;
 };

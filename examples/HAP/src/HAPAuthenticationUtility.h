@@ -66,6 +66,9 @@ public:
 		const byte_string& sharedSecret,
 		byte_string& accessoryProof);
 
+	static bool generateSessionKeys(const byte_string& sharedSecretForSession,
+		byte_string& accessoryToControllerKey, byte_string& controllerToAccessoryKey);
+
 	static void generateRandomBytes(byte_string& randomBytes, size_t count);
 	
 private: 	

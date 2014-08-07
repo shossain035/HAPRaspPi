@@ -79,6 +79,23 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 	println();
 }
 
+void HAPClient::getSharedSecretForSession(unsigned char *sharedSecretForSession)
+{
+	CivetServer::getSharedSecretForSession(_conn, sharedSecretForSession);
+}
+
+void HAPClient::setSharedSecretForSession(const unsigned char *sharedSecretForSession)
+{
+	CivetServer::setSharedSecretForSession(_conn, sharedSecretForSession);
+}
+
+void HAPClient::setSessionKeys(
+	const unsigned char *accessoryToControllerKey, 
+	const unsigned char *controllerToAccessoryKey)
+{
+	CivetServer::setSessionKeys(_conn, accessoryToControllerKey, controllerToAccessoryKey);
+}
+
 const char* HAPClient::getMessage() const
 {
 	return CivetServer::getBody(_conn);
@@ -86,5 +103,5 @@ const char* HAPClient::getMessage() const
 
 int HAPClient::getMessageLength() const
 {
-	return CivetServer::getContentLength(_conn);;
+	return CivetServer::getContentLength(_conn);
 }

@@ -93,6 +93,7 @@
 #define MAX_WORKER_THREADS 1024
 #endif
 
+
 #if defined(_WIN32) && !defined(__SYMBIAN32__) /* Windows specific */
 #if defined(_MSC_VER) && _MSC_VER <= 1400
 #undef _WIN32_WINNT
@@ -357,6 +358,7 @@ void *pthread_getspecific(pthread_key_t key)
 #define MAX_REQUEST_SIZE 16384
 #endif
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+#define DEBUG
 
 #if !defined(DEBUG_TRACE)
 #if defined(DEBUG)
@@ -3975,6 +3977,7 @@ static int read_request(FILE *fp, struct mg_connection *conn,
                         char *buf, int bufsiz, int *nread)
 {
     int request_len, n = 0;
+	DEBUG_TRACE("%s", "reading request");
 
     request_len = get_request_len(buf, *nread);
     while (conn->ctx->stop_flag == 0 &&
@@ -6360,6 +6363,8 @@ static int is_valid_uri(const char *uri)
 
 static int getreq(struct mg_connection *conn, char *ebuf, size_t ebuf_len)
 {
+	DEBUG_TRACE("%s", "inside getreq");
+
     const char *cl;
 
     ebuf[0] = '\0';
@@ -6371,9 +6376,12 @@ static int getreq(struct mg_connection *conn, char *ebuf, size_t ebuf_len)
     if (conn->request_len == 0 && conn->data_len == conn->buf_size) {
         snprintf(ebuf, ebuf_len, "%s", "Request Too Large");
     } else if (conn->request_len <= 0) {
+		DEBUG_TRACE("%s", "Client closed connection");
+
         snprintf(ebuf, ebuf_len, "%s", "Client closed connection");
     } else if (parse_http_message(conn->buf, conn->buf_size,
                                   &conn->request_info) <= 0) {
+		DEBUG_TRACE("%s", "failed to parse request");
         snprintf(ebuf, ebuf_len, "Bad request: [%.*s]", conn->data_len, conn->buf);
     } else {
         /* Message is a valid request or response */
@@ -6481,7 +6489,7 @@ static void process_new_connection(struct mg_connection *conn)
 static int consume_socket(struct mg_context *ctx, struct socket *sp)
 {
     (void) pthread_mutex_lock(&ctx->thread_mutex);
-    DEBUG_TRACE("going idle");
+    //DEBUG_TRACE("going idle");
 
     /* If the queue is empty, wait. We're idle at this point. */
     while (ctx->sq_head == ctx->sq_tail && ctx->stop_flag == 0) {
@@ -6524,6 +6532,7 @@ static void *worker_thread_run(void *thread_func_param)
         mg_cry(fc(ctx), "%s", "Cannot create new connection struct, OOM");
     } else {
         pthread_setspecific(sTlsKey, &tls);
+		conn->request_info.isSessionSecured = 0;
         conn->buf_size = MAX_REQUEST_SIZE;
         conn->buf = (char *) (conn + 1);
         conn->ctx = ctx;
@@ -6573,7 +6582,7 @@ static void *worker_thread_run(void *thread_func_param)
 #endif
     mg_free(conn);
 
-    DEBUG_TRACE("exiting");
+    //DEBUG_TRACE("exiting");
     return NULL;
 }
 
@@ -6725,7 +6734,7 @@ static void master_thread_run(void *thread_func_param)
         }
     }
     mg_free(pfd);
-    DEBUG_TRACE("stopping workers");
+    //DEBUG_TRACE("stopping workers");
 
     /* Stop signal received: somebody called mg_stop. Quit. */
     close_all_listening_sockets(ctx);
@@ -6749,7 +6758,7 @@ static void master_thread_run(void *thread_func_param)
 #if !defined(NO_SSL)
     uninitialize_ssl(ctx);
 #endif
-    DEBUG_TRACE("exiting");
+    //DEBUG_TRACE("exiting");
 
 #if defined(_WIN32) && !defined(__SYMBIAN32__)
     CloseHandle(tls.pthread_cond_helper_mutex);

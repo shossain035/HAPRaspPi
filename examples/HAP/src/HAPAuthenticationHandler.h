@@ -49,7 +49,8 @@ public:
 	virtual ~HAPAuthenticationHandler();
 private:
 	HAP::HAPStatus processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
-	HAP::HAPStatus processVerifyRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
+	HAP::HAPStatus processVerifyRequest(HAPClient& client, 
+				const TLVList& requestTLVList, TLVList& responseTLVList);
 
 	HAP::HAPStatus parseRequestBody(const HAPClient& client, TLVList& tlvList);
 

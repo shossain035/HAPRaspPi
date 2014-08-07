@@ -48,6 +48,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifndef SESSION_SECURITY_KEY_LENGTH
+#define SESSION_SECURITY_KEY_LENGTH 32 
+#endif
+
 struct mg_context;     /* Handle for the HTTP service itself */
 struct mg_connection;  /* Handle for the individual connection */
 
@@ -66,6 +70,13 @@ struct mg_request_info {
     int is_ssl;                 /* 1 if SSL-ed, 0 if not */
     void *user_data;            /* User data pointer passed to mg_start() */
     void *conn_data;            /* Connection-specific user data */
+
+	char isSessionSecured;      /* HAP session security */
+	union {
+		unsigned char sharedSecretForSession[SESSION_SECURITY_KEY_LENGTH];
+		unsigned char accessoryToControllerKey[SESSION_SECURITY_KEY_LENGTH];
+	};
+	unsigned char controllerToAccessoryKey[SESSION_SECURITY_KEY_LENGTH];
 
     int num_headers;            /* Number of HTTP headers */
     struct mg_header {

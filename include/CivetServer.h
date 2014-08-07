@@ -122,6 +122,13 @@ public:
      *      when the server closes and instances cannot be reused.
      */
     void addHandler(const std::string &uri, CivetHandler *handler);
+	
+	static void getSharedSecretForSession(struct mg_connection *conn, unsigned char *sharedSecretForSession);
+
+	static void setSharedSecretForSession(struct mg_connection *conn, const unsigned char *sharedSecretForSession);
+
+	static void setSessionKeys(struct mg_connection *conn, 
+				const unsigned char *accessoryToControllerKey, const unsigned char *controllerToAccessoryKey);
 
     /**
      * removeHandler(const std::string &)

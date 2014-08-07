@@ -59,7 +59,7 @@ HAPAuthenticationHandler::verifyPair(HAPClient& client)
 		return;
 	}
 
-	sendTLVToClient(client, processVerifyRequest(requestTLVList, responseTLVList),
+	sendTLVToClient(client, processVerifyRequest(client, requestTLVList, responseTLVList),
 		responseTLVList);
 }
 
@@ -308,7 +308,7 @@ HAPAuthenticationHandler::getTLVForType(TLVType tlvType, const TLVList& tlvList)
 
 
 HAP::HAPStatus
-HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TLVList& responseTLVList)
+HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList& requestTLVList, TLVList& responseTLVList)
 {
 	TLV_ref stateTLV = getTLVForType(TLVTypeState, requestTLVList);
 	if (NULL == stateTLV) {
@@ -343,6 +343,7 @@ HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TL
 			HAPAuthenticationUtility::
 				generateSharedSecretUsingCurve25519(controllerPublicKey->getValue(), accessorySecretKey, sharedSecret);
 
+			client.setSharedSecretForSession(sharedSecret.data());
 			//Station-To-Station YX
 			byte_string stationToStationYX;
 			stationToStationYX += accessoryPublicKey;
@@ -365,7 +366,17 @@ HAPAuthenticationHandler::processVerifyRequest(const TLVList& requestTLVList, TL
 		case M3:
 		{
 			//todo: verify
+			byte_string sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey;
+			sharedSecretForSession.resize(32);   //todo: remove hardcoding
+			client.getSharedSecretForSession(sharedSecretForSession.data());
+
+			HAPAuthenticationUtility::generateSessionKeys(
+				sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey);
+
+			client.setSessionKeys(accessoryToControllerKey.data(), controllerToAccessoryKey.data());
+
 			////setting state
+			
 			responseTLVList.push_back(createTLVForState(M4));
 			break;
 		}
