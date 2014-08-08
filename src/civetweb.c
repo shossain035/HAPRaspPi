@@ -88,6 +88,8 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <nettle/chacha-poly1305.h>
+
 
 #ifndef MAX_WORKER_THREADS
 #define MAX_WORKER_THREADS 1024
@@ -227,16 +229,6 @@ static int pthread_mutex_unlock(pthread_mutex_t *);
 static void to_unicode(const char *path, wchar_t *wbuf, size_t wbuf_len);
 struct file;
 static char *mg_fgets(char *buf, size_t size, struct file *filep, char **p);
-
-#if defined(HAVE_STDINT)
-#include <stdint.h>
-#else
-typedef unsigned int  uint32_t;
-typedef unsigned short  uint16_t;
-typedef unsigned __int64 uint64_t;
-typedef __int64   int64_t;
-#define INT64_MAX  9223372036854775807
-#endif /* HAVE_STDINT */
 
 /* POSIX dirent interface */
 struct dirent {
@@ -3968,6 +3960,100 @@ static int parse_http_message(char *buf, int len, struct mg_request_info *ri)
     return request_length;
 }
 
+void printString(const uint8_t *bytes, int length, const char* tag) {
+	printf("%s:\n", tag);
+	printf("length: %d\n", length);
+
+	int i = 0;
+	for (i = 0; i < length;i++) {
+		printf("%02hhx ", bytes[i]);
+	}
+	printf("\n*******************************\n");
+}
+
+static int decrypt_request(struct mg_connection *conn, char *buf, int bufsiz, int nonceCounter, const uint8_t *authTag)
+{
+	struct chacha_poly1305_ctx ctx;
+	//todo: calculate from nonceCounter. consider endianess
+	uint8_t nonce[] = {0,0,0,0,0,0,0,0}; 
+	uint8_t *decryptedData = mg_malloc(bufsiz);
+	uint8_t authTagComputed[16];
+
+	chacha_poly1305_set_key(&ctx, conn->request_info.controllerToAccessoryKey);
+	chacha_poly1305_set_nonce(&ctx, nonce);
+	chacha_poly1305_decrypt(&ctx, bufsiz, decryptedData, buf);
+	
+	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputed);
+
+//	printString(decryptedData, bufsiz, "decryptedData");
+	printString(authTag, 16, "authTag");
+	printString(authTagComputed, 16, "authTagComputed");
+
+	memcpy(buf, decryptedData, bufsiz);
+	mg_free(decryptedData);
+
+	buf[bufsiz] = 0;
+	DEBUG_TRACE("request: %s]", buf);
+
+
+	//todo memcmp
+	int i;
+	for (i = 0; i < 16; i++) {
+		if (authTagComputed[i] != authTag[i]) {
+			DEBUG_TRACE("%s", "auth tag mismatch");
+			mg_free(decryptedData);
+			return 0;
+		}
+	}
+	
+	
+	return 1;
+}
+
+
+static int read_secured_request(FILE *fp, struct mg_connection *conn,
+	char *buf, int bufsiz, int *nread) 
+{
+	int request_len = get_request_len(buf, *nread);
+	int blockSize, startOfblockIndex, nonceCounter = 0;
+	uint8_t auxilaryBuffer[16];
+	
+	while (conn->ctx->stop_flag == 0 &&
+		*nread < bufsiz && request_len == 0) {
+		startOfblockIndex = *nread;
+
+		if (4 != pull_all(fp, conn, auxilaryBuffer, 4)) {
+			return -1;
+		}
+
+		blockSize = auxilaryBuffer[0] + 16 * auxilaryBuffer[1] 
+			+ 256 * auxilaryBuffer[2] + 4096 * auxilaryBuffer[3];
+		DEBUG_TRACE("blockSize: %d", blockSize);
+
+		*nread += blockSize;
+		assert(*nread <= bufsiz); //caution: bufsiz of 16384 bytes may not be enough
+
+		if (blockSize != pull_all(fp, conn, buf + startOfblockIndex, blockSize)) {
+			return -1;
+		}
+		if (16 != pull_all(fp, conn, auxilaryBuffer, 16)) {
+			return -1;
+		}
+
+		if (!decrypt_request(conn, buf + startOfblockIndex, blockSize, nonceCounter, auxilaryBuffer)) {
+			return -1;
+		}
+		
+		request_len = get_request_len(buf, *nread);
+		nonceCounter++;
+		//todo: remove this break
+		break;
+	}
+
+	DEBUG_TRACE("request length: %d, nread: %d", request_len, *nread);
+	return request_len <= 0 ? -1 : request_len;
+}
+
 /* Keep reading the input (either opened file descriptor fd, or socket sock,
    or SSL descriptor ssl) into buffer buf, until \r\n\r\n appears in the
    buffer (which marks the end of HTTP request). Buffer buf may already
@@ -3976,11 +4062,18 @@ static int parse_http_message(char *buf, int len, struct mg_request_info *ri)
 static int read_request(FILE *fp, struct mg_connection *conn,
                         char *buf, int bufsiz, int *nread)
 {
-    int request_len, n = 0;
-	DEBUG_TRACE("%s", "reading request");
+    if (conn->request_info.isSecuredSession) {
+		DEBUG_TRACE("%s", "secured request");
+		
+		return read_secured_request(fp, conn, buf, bufsiz, nread);
+	}
 
-    request_len = get_request_len(buf, *nread);
-    while (conn->ctx->stop_flag == 0 &&
+	int request_len, n = 0;
+	request_len = get_request_len(buf, *nread);
+
+	DEBUG_TRACE("%s", "unsecured request");
+
+	while (conn->ctx->stop_flag == 0 &&
            *nread < bufsiz && request_len == 0 &&
            (n = pull(fp, conn, buf + *nread, bufsiz - *nread)) > 0) {
         *nread += n;
@@ -3988,6 +4081,7 @@ static int read_request(FILE *fp, struct mg_connection *conn,
         request_len = get_request_len(buf, *nread);
     }
 
+	DEBUG_TRACE("request length: %d, nread: %d", request_len, *nread);
     return request_len <= 0 && n <= 0 ? -1 : request_len;
 }
 
@@ -6363,9 +6457,7 @@ static int is_valid_uri(const char *uri)
 
 static int getreq(struct mg_connection *conn, char *ebuf, size_t ebuf_len)
 {
-	DEBUG_TRACE("%s", "inside getreq");
-
-    const char *cl;
+	const char *cl;
 
     ebuf[0] = '\0';
     reset_per_request_attributes(conn);
@@ -6532,7 +6624,7 @@ static void *worker_thread_run(void *thread_func_param)
         mg_cry(fc(ctx), "%s", "Cannot create new connection struct, OOM");
     } else {
         pthread_setspecific(sTlsKey, &tls);
-		conn->request_info.isSessionSecured = 0;
+		conn->request_info.isSecuredSession = 0;
         conn->buf_size = MAX_REQUEST_SIZE;
         conn->buf = (char *) (conn + 1);
         conn->ctx = ctx;

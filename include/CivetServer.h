@@ -11,6 +11,7 @@
 #include "civetweb.h"
 #include <map>
 #include <string>
+#include <stdint.h>
 
 // forward declaration
 class CivetServer;
@@ -123,12 +124,14 @@ public:
      */
     void addHandler(const std::string &uri, CivetHandler *handler);
 	
-	static void getSharedSecretForSession(struct mg_connection *conn, unsigned char *sharedSecretForSession);
+	static void getPairVerifyInfo(struct mg_connection *conn, uint8_t *sharedSecretForSession, 
+			uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY);
 
-	static void setSharedSecretForSession(struct mg_connection *conn, const unsigned char *sharedSecretForSession);
+	static void setPairVerifyInfo(struct mg_connection *conn, const uint8_t *sharedSecretForSession,
+			const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY);
 
 	static void setSessionKeys(struct mg_connection *conn, 
-				const unsigned char *accessoryToControllerKey, const unsigned char *controllerToAccessoryKey);
+			const uint8_t *accessoryToControllerKey, const uint8_t *controllerToAccessoryKey);
 
     /**
      * removeHandler(const std::string &)

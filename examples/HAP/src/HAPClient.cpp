@@ -1,25 +1,63 @@
 #include "HAPClient.h"
 #include "CivetServer.h"
-
+#include "HAPAuthenticationUtility.h"
 
 
 HAPClient::HAPClient(struct mg_connection* conn) : _conn(conn) 
 {
+	mg_request_info *request_info = mg_get_request_info(_conn);
+
+	if (request_info->isSecuredSession) {
+		_isSecuredConnection = true;
+	}
+}
+
+HAPClient::~HAPClient()
+{
+	mg_request_info *request_info = mg_get_request_info(_conn);
+
+	if (!_isSecuredConnection) {
+		mg_write(_conn, _response.data(), _response.size());
+		return;
+	}
+
+	byte_string encryptedResponse, authTag;
+	//todo: nonce based on counter. related to decrypt_request in civetweb.c
+	uint8_t nonce[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, nonce, _response, authTag, encryptedResponse);
+
+	union {
+		//warning: assumed littleendian
+		uint32_t encryptedResponseLength;
+		uint8_t encryptedResponseLengthBytes[4];
+	};
+	encryptedResponseLength = encryptedResponse.size();
+	printf("\n\nlength %d\n", encryptedResponse.size());
+	byte_string encryptedFrame;
+	encryptedFrame.insert(encryptedFrame.end(), encryptedResponseLengthBytes, encryptedResponseLengthBytes + 4);
+	encryptedFrame += encryptedResponse;
+	encryptedFrame += authTag;
+
+	mg_write(_conn, encryptedFrame.data(), encryptedFrame.size());
 }
 
 void HAPClient::print(int i) 
 {
-	mg_printf(_conn, "%d", i);
+	char value[10];
+
+	sprintf(value, "%d", i);
+	_response += value;
 }
 
 void HAPClient::print(const char * string) 
 {
-	mg_printf(_conn, "%s", string);
+	_response += string;
 }
 
 void HAPClient::println(const char * string) 
 {
-	print(string);
+	_response += string;
 	println();
 }
 
@@ -36,8 +74,8 @@ void HAPClient::println()
 }
 
 void HAPClient::printBytes(const char * bytes, size_t length)
-{
-	mg_write(_conn, bytes, length);
+{	
+	_response.insert(_response.end(), bytes, bytes + length);	
 }
 
 void HAPClient::sendHeaderWithoutBody(HAP::HAPStatus status)
@@ -79,21 +117,44 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 	println();
 }
 
-void HAPClient::getSharedSecretForSession(unsigned char *sharedSecretForSession)
+
+void HAPClient::getPairVerifyInfo(uint8_t *sharedSecretForSession,
+		uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY)
 {
-	CivetServer::getSharedSecretForSession(_conn, sharedSecretForSession);
+	mg_request_info *request_info = mg_get_request_info(_conn);
+
+	memcpy(sharedSecretForSession, request_info->sharedSecretForSession,
+		SESSION_SECURITY_KEY_LENGTH);
+	memcpy(controllerLongTermPublicKey, request_info->controllerLongTermPublicKey,
+		SESSION_SECURITY_KEY_LENGTH);
+	memcpy(stationToStationXY, request_info->stationToStationXY,
+		2 * SESSION_SECURITY_KEY_LENGTH);
 }
 
-void HAPClient::setSharedSecretForSession(const unsigned char *sharedSecretForSession)
+void HAPClient::setPairVerifyInfo(const uint8_t *sharedSecretForSession,
+		const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY)
 {
-	CivetServer::setSharedSecretForSession(_conn, sharedSecretForSession);
+	mg_request_info *request_info = mg_get_request_info(_conn);
+
+	memcpy(request_info->sharedSecretForSession, sharedSecretForSession,
+		SESSION_SECURITY_KEY_LENGTH);
+	memcpy(request_info->controllerLongTermPublicKey, controllerLongTermPublicKey,
+		SESSION_SECURITY_KEY_LENGTH);
+	memcpy(request_info->stationToStationXY, stationToStationXY,
+		2 * SESSION_SECURITY_KEY_LENGTH);
 }
 
 void HAPClient::setSessionKeys(
-	const unsigned char *accessoryToControllerKey, 
-	const unsigned char *controllerToAccessoryKey)
+	const uint8_t *accessoryToControllerKey, 
+	const uint8_t *controllerToAccessoryKey)
 {
-	CivetServer::setSessionKeys(_conn, accessoryToControllerKey, controllerToAccessoryKey);
+	mg_request_info *request_info = mg_get_request_info(_conn);
+
+	request_info->isSecuredSession = 1;
+	memcpy(request_info->accessoryToControllerKey,
+		accessoryToControllerKey, SESSION_SECURITY_KEY_LENGTH);
+	memcpy(request_info->controllerToAccessoryKey,
+		controllerToAccessoryKey, SESSION_SECURITY_KEY_LENGTH);
 }
 
 const char* HAPClient::getMessage() const

@@ -4,10 +4,6 @@
 #include <nettle/knuth-lfib.h>
 #include "Curve25519Donna.h"
 #include "ed25519.h"
-#include <memory>
-#include <algorithm>
-#include <fstream>
-#include <iterator>
 
 #define CURVE25519_KEY_SIZE                 32
 const char* HAPPairing::_pairingStorePath = "./keys/";
@@ -46,15 +42,34 @@ HAPAuthenticationUtility::decryptControllerLTPK(
 bool
 HAPAuthenticationUtility::encryptAccessoryLTPK(
 	const byte_string& sharedEncryptionDecryptionKey,
-	const byte_string& decryptedKey, byte_string& authTag, byte_string& encryptedKey)
+	const byte_string& plainTextKey, byte_string& authTag, byte_string& encryptedKey)
 {
 	chacha_poly1305_ctx ctx;
 
 	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
 	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
 	
-	encryptedKey.resize(decryptedKey.size());
-	chacha_poly1305_encrypt(&ctx, decryptedKey.size(), encryptedKey.data(), decryptedKey.data());
+	encryptedKey.resize(plainTextKey.size());
+	chacha_poly1305_encrypt(&ctx, plainTextKey.size(), encryptedKey.data(), plainTextKey.data());
+
+	computeChaChaPolyAuthTag(ctx, authTag);
+	
+	return true;
+}
+
+//todo combine all the chacha poly encrypt
+bool
+HAPAuthenticationUtility::encryptHAPResponse(
+	const uint8_t* encryptionKey, const uint8_t* nonce,
+	const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse)
+{
+	chacha_poly1305_ctx ctx;
+
+	chacha_poly1305_set_key(&ctx, encryptionKey);
+	chacha_poly1305_set_nonce(&ctx, nonce);
+	
+	encryptedResponse.resize(plaintTextResponse.size());
+	chacha_poly1305_encrypt(&ctx, plaintTextResponse.size(), encryptedResponse.data(), plaintTextResponse.data());
 
 	computeChaChaPolyAuthTag(ctx, authTag);
 	
@@ -105,6 +120,7 @@ HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
 	ed25519_sign(stationToStationYX.data(), stationToStationYX.size(), 
 		accessoryLongTermSecretKey.data(), accessoryLongTermPublicKey.data(), signature);
 	
+	/*
 	//derive encryption key
 	byte_string encryptionKey;
 	if (!deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Salt", "Pair-Verify-Encryption-Key", encryptionKey)) {
@@ -119,8 +135,27 @@ HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
 
 	accessoryProof.resize(sizeof(ed25519_signature));
 	chacha_crypt(&ctx, sizeof(ed25519_signature), accessoryProof.data(), signature);
-	
-	return true;
+	*/
+
+	return chacha20Crypt(sharedSecret, "PV-Msg02", sizeof(ed25519_signature), signature, accessoryProof);
+}
+
+bool 
+HAPAuthenticationUtility::verifyControllerProofForSTSProtocol(
+		const byte_string& stationToStationXY,
+		const byte_string& controllerLongTermPublicKey,
+		const byte_string& sharedSecret,
+		const byte_string& controllerProof)
+{
+	byte_string decryptedControllerProof;
+	//derive decryption key
+	if (!chacha20Crypt(sharedSecret, "PV-Msg03", 
+		controllerProof.size(), controllerProof.data(), decryptedControllerProof)) {
+		return false;
+	}
+
+	return ed25519_sign_open(stationToStationXY.data(), stationToStationXY.size(), 
+			controllerLongTermPublicKey.data(), decryptedControllerProof.data()) == 0;
 }
 
 
@@ -214,6 +249,29 @@ HAPAuthenticationUtility::generateRandomBytes(byte_string& randomBytes, size_t c
 	randomBytes.resize(count);
 	knuth_lfib_random(&randomCtx, count, randomBytes.data());
 }
+
+bool 
+HAPAuthenticationUtility::chacha20Crypt(const byte_string& sharedSecret, const char* nonce,
+		int length, const uint8_t* source, byte_string& destination)
+{
+	//derive encryption key
+	byte_string encryptionKey;
+	if (!deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Salt", "Pair-Verify-Encryption-Key", encryptionKey)) {
+		return false;
+	}
+
+	//crypt signature with chacha20
+	chacha_ctx ctx;
+	chacha_set_key(&ctx, encryptionKey.data());
+	chacha_set_nonce(&ctx, (uint8_t*) nonce);
+	ctx.state[12] = 0; //block counter = 0
+
+	destination.resize(length);
+	chacha_crypt(&ctx, length, destination.data(), source);
+
+	return true;
+}
+
 
 bool
 HAPPairing::savePairing()

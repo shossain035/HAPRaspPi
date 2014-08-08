@@ -49,7 +49,10 @@ public:
 		const byte_string& encryptedKey, const byte_string& authTag, byte_string& decryptedKey);
 	static bool encryptAccessoryLTPK(
 		const byte_string& sharedEncryptionDecryptionKey,
-		const byte_string& decryptedKey, byte_string& authTag, byte_string& encryptedKey);
+		const byte_string& plaintTextKey, byte_string& authTag, byte_string& encryptedKey);
+	static bool encryptHAPResponse(
+		const uint8_t* encryptionKey, const uint8_t* nonce,
+		const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse);
 
 	static bool generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey);
 
@@ -66,6 +69,13 @@ public:
 		const byte_string& sharedSecret,
 		byte_string& accessoryProof);
 
+	static bool verifyControllerProofForSTSProtocol(
+		const byte_string& stationToStationXY,
+		const byte_string& controllerLongTermPublicKey,
+		const byte_string& sharedSecret,
+		const byte_string& controllerProof);
+
+
 	static bool generateSessionKeys(const byte_string& sharedSecretForSession,
 		byte_string& accessoryToControllerKey, byte_string& controllerToAccessoryKey);
 
@@ -74,6 +84,9 @@ public:
 private: 	
 	static bool deriveKeyUsingHKDF(
 		const byte_string& inputKey, const char* salt, const char* info, byte_string& derivedKey);
-	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);			
+	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);
+
+	static bool chacha20Crypt(const byte_string& sharedSecret, const char* nonce,
+		int length, const uint8_t* source, byte_string& destination);
 };
 #endif

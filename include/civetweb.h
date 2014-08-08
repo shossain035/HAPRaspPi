@@ -43,6 +43,7 @@
 
 #include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,12 +72,16 @@ struct mg_request_info {
     void *user_data;            /* User data pointer passed to mg_start() */
     void *conn_data;            /* Connection-specific user data */
 
-	char isSessionSecured;      /* HAP session security */
+	char isSecuredSession;      /* HAP session security */
 	union {
-		unsigned char sharedSecretForSession[SESSION_SECURITY_KEY_LENGTH];
-		unsigned char accessoryToControllerKey[SESSION_SECURITY_KEY_LENGTH];
+		uint8_t sharedSecretForSession[SESSION_SECURITY_KEY_LENGTH];
+		uint8_t accessoryToControllerKey[SESSION_SECURITY_KEY_LENGTH];
 	};
-	unsigned char controllerToAccessoryKey[SESSION_SECURITY_KEY_LENGTH];
+	union {
+		uint8_t controllerLongTermPublicKey[SESSION_SECURITY_KEY_LENGTH];
+		uint8_t controllerToAccessoryKey[SESSION_SECURITY_KEY_LENGTH];
+	};
+	uint8_t stationToStationXY[2*SESSION_SECURITY_KEY_LENGTH];
 
     int num_headers;            /* Number of HTTP headers */
     struct mg_header {

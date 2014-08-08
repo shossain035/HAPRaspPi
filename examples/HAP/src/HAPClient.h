@@ -2,6 +2,8 @@
 #define _HAPCLIENT_H_
 
 #include <stddef.h>
+#include <stdint.h>
+#include "byte_string.h"
 
 namespace HAP
 {
@@ -23,6 +25,8 @@ namespace HAP
 class HAPClient {
 public:
 	HAPClient(struct mg_connection* conn);
+	~HAPClient();
+
 	void print(int i);
 	void print(const char * string);
 	void println(int i);
@@ -38,12 +42,18 @@ public:
 		HAP::HAPMessageContentType contentType = HAP::HAPMessageContentTypeJSON);
 	void sendHeaderWithoutBody(HAP::HAPStatus status);
 
-	void getSharedSecretForSession(unsigned char *sharedSecretForSession);
-	void setSharedSecretForSession(const unsigned char *sharedSecretForSession);
+	void getPairVerifyInfo(uint8_t *sharedSecretForSession,
+		uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY);
+
+	void setPairVerifyInfo(const uint8_t *sharedSecretForSession,
+		const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY);
+
 	void setSessionKeys(
-		const unsigned char *accessoryToControllerKey, const unsigned char *controllerToAccessoryKey);
+		const uint8_t *accessoryToControllerKey, const uint8_t *controllerToAccessoryKey);
 
 private:
 	struct mg_connection* _conn;
+	byte_string _response;
+	bool _isSecuredConnection;
 };
 #endif

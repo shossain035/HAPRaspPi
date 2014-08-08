@@ -343,7 +343,14 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 			HAPAuthenticationUtility::
 				generateSharedSecretUsingCurve25519(controllerPublicKey->getValue(), accessorySecretKey, sharedSecret);
 
-			client.setSharedSecretForSession(sharedSecret.data());
+			//Station-To-Station XY
+			byte_string stationToStationXY;
+			stationToStationXY += controllerPublicKey->getValue();
+			stationToStationXY += accessoryPublicKey;
+
+			client.setPairVerifyInfo(sharedSecret.data(), 
+				pairing.controllerLongTermPublicKey().data(), stationToStationXY.data());
+							
 			//Station-To-Station YX
 			byte_string stationToStationYX;
 			stationToStationYX += accessoryPublicKey;
@@ -365,18 +372,35 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 		}
 		case M3:
 		{
-			//todo: verify
-			byte_string sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey;
+			TLV_ref controllerProofTLV = getTLVForType(TLVTypeProof, requestTLVList);
+			if (controllerProofTLV == NULL) {
+				return HAP::BAD_REQUEST;
+			}
+
+			byte_string sharedSecretForSession, controllerLongTermPublicKey, stationToStationXY;
+				
 			sharedSecretForSession.resize(32);   //todo: remove hardcoding
-			client.getSharedSecretForSession(sharedSecretForSession.data());
+			controllerLongTermPublicKey.resize(32);
+			stationToStationXY.resize(64);
+
+			client.getPairVerifyInfo(sharedSecretForSession.data(),
+				controllerLongTermPublicKey.data(), stationToStationXY.data());
+
+			if (!HAPAuthenticationUtility::verifyControllerProofForSTSProtocol(
+				stationToStationXY, controllerLongTermPublicKey, sharedSecretForSession, controllerProofTLV->getValue())) {
+				//send AuthenticationErr
+				printf("failed to verify session\n");
+				return HAP::BAD_REQUEST;
+			}
+	
+			byte_string accessoryToControllerKey, controllerToAccessoryKey;
 
 			HAPAuthenticationUtility::generateSessionKeys(
 				sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey);
 
 			client.setSessionKeys(accessoryToControllerKey.data(), controllerToAccessoryKey.data());
 
-			////setting state
-			
+			////setting state			
 			responseTLVList.push_back(createTLVForState(M4));
 			break;
 		}
