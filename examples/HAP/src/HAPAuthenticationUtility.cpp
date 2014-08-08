@@ -63,11 +63,19 @@ HAPAuthenticationUtility::encryptHAPResponse(
 	const uint8_t* encryptionKey, const uint8_t* nonce,
 	const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse)
 {
+	
+	union {
+		int aadValue;
+		uint8_t aad[4];
+	};
+	aadValue = plaintTextResponse.size();
+
 	chacha_poly1305_ctx ctx;
 
 	chacha_poly1305_set_key(&ctx, encryptionKey);
 	chacha_poly1305_set_nonce(&ctx, nonce);
-	
+	chacha_poly1305_update(&ctx, 4, aad);
+
 	encryptedResponse.resize(plaintTextResponse.size());
 	chacha_poly1305_encrypt(&ctx, plaintTextResponse.size(), encryptedResponse.data(), plaintTextResponse.data());
 

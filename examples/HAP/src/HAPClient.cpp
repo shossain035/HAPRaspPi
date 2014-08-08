@@ -21,22 +21,23 @@ HAPClient::~HAPClient()
 		return;
 	}
 
-	byte_string encryptedResponse, authTag;
+	//byte_string encryptedResponse, authTag;
+	byte_string authTag;
 	//todo: nonce based on counter. related to decrypt_request in civetweb.c
 	uint8_t nonce[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
-	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, nonce, _response, authTag, encryptedResponse);
+	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, nonce, _response, authTag, _response);
 
 	union {
 		//warning: assumed littleendian
 		uint32_t encryptedResponseLength;
 		uint8_t encryptedResponseLengthBytes[4];
 	};
-	encryptedResponseLength = encryptedResponse.size();
-	printf("\n\nlength %d\n", encryptedResponse.size());
+	encryptedResponseLength = _response.size();
+	printf("\n\nlength %d\n", _response.size());
 	byte_string encryptedFrame;
 	encryptedFrame.insert(encryptedFrame.end(), encryptedResponseLengthBytes, encryptedResponseLengthBytes + 4);
-	encryptedFrame += encryptedResponse;
+	encryptedFrame += _response;
 	encryptedFrame += authTag;
 
 	mg_write(_conn, encryptedFrame.data(), encryptedFrame.size());

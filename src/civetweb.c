@@ -89,7 +89,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <nettle/chacha-poly1305.h>
-
+#include "poly1305-donna.h"
 
 #ifndef MAX_WORKER_THREADS
 #define MAX_WORKER_THREADS 1024
@@ -3973,40 +3973,38 @@ void printString(const uint8_t *bytes, int length, const char* tag) {
 
 static int decrypt_request(struct mg_connection *conn, char *buf, int bufsiz, int nonceCounter, const uint8_t *authTag)
 {
-	struct chacha_poly1305_ctx ctx;
 	//todo: calculate from nonceCounter. consider endianess
 	uint8_t nonce[] = {0,0,0,0,0,0,0,0}; 
 	uint8_t *decryptedData = mg_malloc(bufsiz);
-	uint8_t authTagComputed[16];
+	uint8_t authTagComputedNettle[16], authTagComputed[16];
+	
+	union {
+		int aadValue;
+		uint8_t aad[4];
+	}u;
+	u.aadValue = bufsiz;
 
+	struct chacha_poly1305_ctx ctx;
 	chacha_poly1305_set_key(&ctx, conn->request_info.controllerToAccessoryKey);
 	chacha_poly1305_set_nonce(&ctx, nonce);
-	chacha_poly1305_decrypt(&ctx, bufsiz, decryptedData, buf);
+
+	chacha_poly1305_update(&ctx, 4, u.aad);
+	chacha_poly1305_decrypt(&ctx, bufsiz, buf, buf);
+	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputedNettle);
 	
-	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputed);
 
-//	printString(decryptedData, bufsiz, "decryptedData");
+	printString(u.aad, 4, "aaad");
 	printString(authTag, 16, "authTag");
-	printString(authTagComputed, 16, "authTagComputed");
+	//printString(authTagComputed, 16, "authTagComputed");
+	printString(authTagComputedNettle, 16, "authTagComputedNettle");
 
-	memcpy(buf, decryptedData, bufsiz);
+	//memcpy(buf, decryptedData, bufsiz);
 	mg_free(decryptedData);
 
 	buf[bufsiz] = 0;
 	DEBUG_TRACE("request: %s]", buf);
 
 
-	//todo memcmp
-	int i;
-	for (i = 0; i < 16; i++) {
-		if (authTagComputed[i] != authTag[i]) {
-			DEBUG_TRACE("%s", "auth tag mismatch");
-			mg_free(decryptedData);
-			return 0;
-		}
-	}
-	
-	
 	return 1;
 }
 
@@ -4025,6 +4023,7 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 		if (4 != pull_all(fp, conn, auxilaryBuffer, 4)) {
 			return -1;
 		}
+		printString(auxilaryBuffer, 4, "AAD");
 
 		blockSize = auxilaryBuffer[0] + 16 * auxilaryBuffer[1] 
 			+ 256 * auxilaryBuffer[2] + 4096 * auxilaryBuffer[3];
