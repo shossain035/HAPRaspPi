@@ -53,18 +53,21 @@ int HAPCharacteristic::sendToClient(HAPClient & client)
 void HAPCharacteristic::updateValueWithJSON(HAPClient& client, const char* string)
 {
 	if (string == NULL) {
+		printf("empty message body\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}
 	
 	const char* valueTagString = strstr(string, "value");
 	if (valueTagString == NULL) {
+		printf("missing 'value'\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}
 
 	const char* valueStringBegin = strchr(string, ':');
 	if (valueTagString == NULL) {
+		printf("malformed json\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}

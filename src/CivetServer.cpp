@@ -109,47 +109,6 @@ void CivetServer::addHandler(const std::string &uri, CivetHandler *handler)
     mg_set_request_handler(context, uri.c_str(), requestHandler, handler);
 }
 
-
-////////////////////////delete////////////////////////
-void CivetServer::getPairVerifyInfo(struct mg_connection *conn, uint8_t *sharedSecretForSession,
-					uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY)
-{
-	mg_request_info *request_info = mg_get_request_info(conn);
-
-	memcpy(sharedSecretForSession, request_info->sharedSecretForSession,
-			SESSION_SECURITY_KEY_LENGTH);
-	memcpy(controllerLongTermPublicKey, request_info->controllerLongTermPublicKey,
-			SESSION_SECURITY_KEY_LENGTH);
-	memcpy(stationToStationXY, request_info->stationToStationXY,
-			2 * SESSION_SECURITY_KEY_LENGTH);
-}
-
-void CivetServer::setPairVerifyInfo(struct mg_connection *conn, const uint8_t *sharedSecretForSession,
-					const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY)
-{
-	mg_request_info *request_info = mg_get_request_info(conn);
-
-	memcpy(request_info->sharedSecretForSession, sharedSecretForSession, 
-			SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->controllerLongTermPublicKey, controllerLongTermPublicKey, 
-			SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->stationToStationXY, stationToStationXY, 
-			2 * SESSION_SECURITY_KEY_LENGTH);
-}
-
-void CivetServer::setSessionKeys(struct mg_connection *conn,
-					const uint8_t *accessoryToControllerKey,
-					const uint8_t *controllerToAccessoryKey)
-{
-	mg_request_info *request_info = mg_get_request_info(conn);
-
-	request_info->isSecuredSession = 1;
-	memcpy(request_info->accessoryToControllerKey, 
-			accessoryToControllerKey, SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->controllerToAccessoryKey,
-			controllerToAccessoryKey, SESSION_SECURITY_KEY_LENGTH);
-}
-
 void CivetServer::removeHandler(const std::string &uri)
 {
     mg_set_request_handler(context, uri.c_str(), NULL, NULL);

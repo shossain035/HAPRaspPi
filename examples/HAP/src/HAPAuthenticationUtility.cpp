@@ -128,23 +128,6 @@ HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
 	ed25519_sign(stationToStationYX.data(), stationToStationYX.size(), 
 		accessoryLongTermSecretKey.data(), accessoryLongTermPublicKey.data(), signature);
 	
-	/*
-	//derive encryption key
-	byte_string encryptionKey;
-	if (!deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Salt", "Pair-Verify-Encryption-Key", encryptionKey)) {
-		return false;
-	}
-
-	//encrypt signature with chacha20
-	chacha_ctx ctx;
-	chacha_set_key(&ctx, encryptionKey.data());
-	chacha_set_nonce(&ctx, (uint8_t *) "PV-Msg02");
-	ctx.state[12] = 0; //block counter = 0
-
-	accessoryProof.resize(sizeof(ed25519_signature));
-	chacha_crypt(&ctx, sizeof(ed25519_signature), accessoryProof.data(), signature);
-	*/
-
 	return chacha20Crypt(sharedSecret, "PV-Msg02", sizeof(ed25519_signature), signature, accessoryProof);
 }
 

@@ -237,9 +237,6 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 			
-			printString(controllerDecryptedLongTermPublicKey, "controller public");
-			printString(accessoryLongTermPublicKey, "accessory public");
-
 			//prepare response
 			if (!prepareEncryptedAccessoryData(
 				sharedEncryptionDecryptionKey, accessoryLongTermPublicKey, responseTLVList)) {
@@ -348,8 +345,8 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 			stationToStationXY += controllerPublicKey->getValue();
 			stationToStationXY += accessoryPublicKey;
 
-			client.setPairVerifyInfo(sharedSecret.data(), 
-				pairing.controllerLongTermPublicKey().data(), stationToStationXY.data());
+			client.setPairVerifyInfo(sharedSecret, 
+				pairing.controllerLongTermPublicKey(), stationToStationXY);
 							
 			//Station-To-Station YX
 			byte_string stationToStationYX;
@@ -379,12 +376,8 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 
 			byte_string sharedSecretForSession, controllerLongTermPublicKey, stationToStationXY;
 				
-			sharedSecretForSession.resize(32);   //todo: remove hardcoding
-			controllerLongTermPublicKey.resize(32);
-			stationToStationXY.resize(64);
-
-			client.getPairVerifyInfo(sharedSecretForSession.data(),
-				controllerLongTermPublicKey.data(), stationToStationXY.data());
+			client.getPairVerifyInfo(sharedSecretForSession,
+				controllerLongTermPublicKey, stationToStationXY);
 
 			if (!HAPAuthenticationUtility::verifyControllerProofForSTSProtocol(
 				stationToStationXY, controllerLongTermPublicKey, sharedSecretForSession, controllerProofTLV->getValue())) {
@@ -398,7 +391,7 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 			HAPAuthenticationUtility::generateSessionKeys(
 				sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey);
 
-			client.setSessionKeys(accessoryToControllerKey.data(), controllerToAccessoryKey.data());
+			client.setSessionKeys(accessoryToControllerKey, controllerToAccessoryKey);
 
 			////setting state			
 			responseTLVList.push_back(createTLVForState(M4));
@@ -420,7 +413,7 @@ HAPAuthenticationHandler::parseRequestBody(const HAPClient& client, TLVList& tlv
 	int messageLength = client.getMessageLength();
 
 	byte_string bytes(message, message + messageLength);
-	printString(bytes, "request");
+	//printString(bytes, "request");
 
 	try {
 		byte_string::iterator begin = bytes.begin();

@@ -53,6 +53,10 @@ extern "C" {
 #define SESSION_SECURITY_KEY_LENGTH 32 
 #endif
 
+#ifndef STATION_TO_STATION_XY_LENGTH
+#define STATION_TO_STATION_XY_LENGTH 64
+#endif
+
 struct mg_context;     /* Handle for the HTTP service itself */
 struct mg_connection;  /* Handle for the individual connection */
 
@@ -81,7 +85,16 @@ struct mg_request_info {
 		uint8_t controllerLongTermPublicKey[SESSION_SECURITY_KEY_LENGTH];
 		uint8_t controllerToAccessoryKey[SESSION_SECURITY_KEY_LENGTH];
 	};
-	uint8_t stationToStationXY[2*SESSION_SECURITY_KEY_LENGTH];
+	uint8_t stationToStationXY[STATION_TO_STATION_XY_LENGTH];
+	union {
+		uint64_t incomingFrameCounter;
+		uint8_t  incomingNonce[8];
+	};
+	union {
+		uint64_t outgoingFrameCounter;
+		uint8_t  outgoingNonce[8];
+	};
+
 
     int num_headers;            /* Number of HTTP headers */
     struct mg_header {

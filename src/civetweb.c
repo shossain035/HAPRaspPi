@@ -89,7 +89,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <nettle/chacha-poly1305.h>
-#include "poly1305-donna.h"
 
 #ifndef MAX_WORKER_THREADS
 #define MAX_WORKER_THREADS 1024
@@ -2243,43 +2242,43 @@ static int pull_all(FILE *fp, struct mg_connection *conn, char *buf, int len)
 
 int mg_read(struct mg_connection *conn, void *buf, size_t len)
 {
-    int64_t n, buffered_len, nread;
-    const char *body;
+	int64_t n, buffered_len, nread;
+	const char *body;
 
-    /* If Content-Length is not set for a PUT or POST request, read until socket is closed */
-    if (conn->consumed_content == 0 && conn->content_len == -1) {
-        conn->content_len = INT64_MAX;
-        conn->must_close = 1;
-    }
+	/* If Content-Length is not set for a PUT or POST request, read until socket is closed */
+	if (conn->consumed_content == 0 && conn->content_len == -1) {
+		conn->content_len = INT64_MAX;
+		conn->must_close = 1;
+	}
 
-    nread = 0;
-    if (conn->consumed_content < conn->content_len) {
-        /* Adjust number of bytes to read. */
-        int64_t to_read = conn->content_len - conn->consumed_content;
-        if (to_read < (int64_t) len) {
-            len = (size_t) to_read;
-        }
+	nread = 0;
+	if (conn->consumed_content < conn->content_len) {
+		/* Adjust number of bytes to read. */
+		int64_t to_read = conn->content_len - conn->consumed_content;
+		if (to_read < (int64_t)len) {
+			len = (size_t)to_read;
+		}
 
-        /* Return buffered data */
-        body = conn->buf + conn->request_len + conn->consumed_content;
-        buffered_len = (int64_t)(&conn->buf[conn->data_len] - body);
-        if (buffered_len > 0) {
-            if (len < (size_t) buffered_len) {
-                buffered_len = (int64_t) len;
-            }
-            memcpy(buf, body, (size_t) buffered_len);
-            len -= buffered_len;
-            conn->consumed_content += buffered_len;
-            nread += buffered_len;
-            buf = (char *) buf + buffered_len;
-        }
+		/* Return buffered data */
+		body = conn->buf + conn->request_len + conn->consumed_content;
+		buffered_len = (int64_t)(&conn->buf[conn->data_len] - body);
+		if (buffered_len > 0) {
+			if (len < (size_t)buffered_len) {
+				buffered_len = (int64_t)len;
+			}
+			memcpy(buf, body, (size_t)buffered_len);
+			len -= buffered_len;
+			conn->consumed_content += buffered_len;
+			nread += buffered_len;
+			buf = (char *)buf + buffered_len;
+		}
 
-        /* We have returned all buffered data. Read new data from the remote
-           socket. */
-        n = pull_all(NULL, conn, (char *) buf, (int64_t) len);
-        nread = n >= 0 ? nread + n : n;
-    }
-    return nread;
+		/* We have returned all buffered data. Read new data from the remote
+		socket. */
+		n = pull_all(NULL, conn, (char *)buf, (int64_t)len);
+		nread = n >= 0 ? nread + n : n;
+	}
+	return nread;
 }
 
 int mg_write(struct mg_connection *conn, const void *buf, size_t len)
@@ -3971,41 +3970,31 @@ void printString(const uint8_t *bytes, int length, const char* tag) {
 	printf("\n*******************************\n");
 }
 
-static int decrypt_request(struct mg_connection *conn, char *buf, int bufsiz, int nonceCounter, const uint8_t *authTag)
+static int decrypt_request(struct mg_connection *conn, char *buf, int bufsiz, const char *authTag)
 {
-	//todo: calculate from nonceCounter. consider endianess
-	uint8_t nonce[] = {0,0,0,0,0,0,0,0}; 
-	uint8_t *decryptedData = mg_malloc(bufsiz);
-	uint8_t authTagComputedNettle[16], authTagComputed[16];
+	uint8_t authTagComputed[CHACHA_POLY1305_DIGEST_SIZE];
 	
 	union {
-		int aadValue;
+		uint32_t aadValue;
 		uint8_t aad[4];
 	}u;
 	u.aadValue = bufsiz;
 
 	struct chacha_poly1305_ctx ctx;
 	chacha_poly1305_set_key(&ctx, conn->request_info.controllerToAccessoryKey);
-	chacha_poly1305_set_nonce(&ctx, nonce);
+	chacha_poly1305_set_nonce(&ctx, conn->request_info.incomingNonce);
+
+	//todo: consider threading issues
+	conn->request_info.incomingFrameCounter++;
 
 	chacha_poly1305_update(&ctx, 4, u.aad);
-	chacha_poly1305_decrypt(&ctx, bufsiz, buf, buf);
-	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputedNettle);
+	chacha_poly1305_decrypt(&ctx, bufsiz, (uint8_t *) buf, (uint8_t *) buf);
+	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputed);
 	
-
-	printString(u.aad, 4, "aaad");
-	printString(authTag, 16, "authTag");
+	//printString(authTag, 16, "authTag");
 	//printString(authTagComputed, 16, "authTagComputed");
-	printString(authTagComputedNettle, 16, "authTagComputedNettle");
-
-	//memcpy(buf, decryptedData, bufsiz);
-	mg_free(decryptedData);
-
-	buf[bufsiz] = 0;
-	DEBUG_TRACE("request: %s]", buf);
-
-
-	return 1;
+	
+	return (0 == memcmp(authTagComputed, authTag, CHACHA_POLY1305_DIGEST_SIZE));
 }
 
 
@@ -4013,8 +4002,8 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 	char *buf, int bufsiz, int *nread) 
 {
 	int request_len = get_request_len(buf, *nread);
-	int blockSize, startOfblockIndex, nonceCounter = 0;
-	uint8_t auxilaryBuffer[16];
+	int blockSize, startOfblockIndex;
+	char auxilaryBuffer[16];
 	
 	while (conn->ctx->stop_flag == 0 &&
 		*nread < bufsiz && request_len == 0) {
@@ -4023,11 +4012,10 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 		if (4 != pull_all(fp, conn, auxilaryBuffer, 4)) {
 			return -1;
 		}
-		printString(auxilaryBuffer, 4, "AAD");
-
+		
 		blockSize = auxilaryBuffer[0] + 16 * auxilaryBuffer[1] 
 			+ 256 * auxilaryBuffer[2] + 4096 * auxilaryBuffer[3];
-		DEBUG_TRACE("blockSize: %d", blockSize);
+		//DEBUG_TRACE("blockSize: %d", blockSize);
 
 		*nread += blockSize;
 		assert(*nread <= bufsiz); //caution: bufsiz of 16384 bytes may not be enough
@@ -4039,17 +4027,15 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 			return -1;
 		}
 
-		if (!decrypt_request(conn, buf + startOfblockIndex, blockSize, nonceCounter, auxilaryBuffer)) {
+		if (!decrypt_request(conn, buf + startOfblockIndex, blockSize, auxilaryBuffer)) {
 			return -1;
 		}
 		
-		request_len = get_request_len(buf, *nread);
-		nonceCounter++;
-		//todo: remove this break
-		break;
+		request_len = get_request_len(buf, *nread);		
 	}
 
-	DEBUG_TRACE("request length: %d, nread: %d", request_len, *nread);
+	conn->consumed_content = 0;
+	
 	return request_len <= 0 ? -1 : request_len;
 }
 
@@ -4080,7 +4066,7 @@ static int read_request(FILE *fp, struct mg_connection *conn,
         request_len = get_request_len(buf, *nread);
     }
 
-	DEBUG_TRACE("request length: %d, nread: %d", request_len, *nread);
+	//DEBUG_TRACE("request length: %d, nread: %d", request_len, *nread);
     return request_len <= 0 && n <= 0 ? -1 : request_len;
 }
 
@@ -6624,6 +6610,7 @@ static void *worker_thread_run(void *thread_func_param)
     } else {
         pthread_setspecific(sTlsKey, &tls);
 		conn->request_info.isSecuredSession = 0;
+		conn->request_info.incomingFrameCounter = conn->request_info.outgoingFrameCounter = 0;
         conn->buf_size = MAX_REQUEST_SIZE;
         conn->buf = (char *) (conn + 1);
         conn->ctx = ctx;

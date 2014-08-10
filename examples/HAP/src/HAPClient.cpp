@@ -15,32 +15,32 @@ HAPClient::HAPClient(struct mg_connection* conn) : _conn(conn)
 HAPClient::~HAPClient()
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
-
+	//todo: force secure connection
 	if (!_isSecuredConnection) {
 		mg_write(_conn, _response.data(), _response.size());
 		return;
 	}
 
-	//byte_string encryptedResponse, authTag;
 	byte_string authTag;
-	//todo: nonce based on counter. related to decrypt_request in civetweb.c
-	uint8_t nonce[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-
-	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, nonce, _response, authTag, _response);
-
+	
+	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, 
+		request_info->outgoingNonce, _response, authTag, _response);
+	//todo: consider threading issues
+	request_info->outgoingFrameCounter++;
+	
 	union {
 		//warning: assumed littleendian
 		uint32_t encryptedResponseLength;
 		uint8_t encryptedResponseLengthBytes[4];
 	};
-	encryptedResponseLength = _response.size();
-	printf("\n\nlength %d\n", _response.size());
-	byte_string encryptedFrame;
-	encryptedFrame.insert(encryptedFrame.end(), encryptedResponseLengthBytes, encryptedResponseLengthBytes + 4);
-	encryptedFrame += _response;
-	encryptedFrame += authTag;
 
-	mg_write(_conn, encryptedFrame.data(), encryptedFrame.size());
+	encryptedResponseLength = _response.size();
+	
+	//<4B: length of encrypted text, n>, <n: encrypted text> <16: authTag>
+	_response.insert(_response.begin(), encryptedResponseLengthBytes, encryptedResponseLengthBytes + 4);
+	_response += authTag;
+
+	mg_write(_conn, _response.data(), _response.size());
 }
 
 void HAPClient::print(int i) 
@@ -118,50 +118,49 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 	println();
 }
 
-
-void HAPClient::getPairVerifyInfo(uint8_t *sharedSecretForSession,
-		uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY)
+void HAPClient::getPairVerifyInfo(byte_string& sharedSecretForSession,
+		byte_string& controllerLongTermPublicKey, byte_string& stationToStationXY)
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
-
-	memcpy(sharedSecretForSession, request_info->sharedSecretForSession,
-		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(controllerLongTermPublicKey, request_info->controllerLongTermPublicKey,
-		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(stationToStationXY, request_info->stationToStationXY,
-		2 * SESSION_SECURITY_KEY_LENGTH);
+	
+	sharedSecretForSession.assign(request_info->sharedSecretForSession,
+		request_info->sharedSecretForSession + SESSION_SECURITY_KEY_LENGTH);
+	controllerLongTermPublicKey.assign(request_info->controllerLongTermPublicKey,
+		request_info->controllerLongTermPublicKey + SESSION_SECURITY_KEY_LENGTH);
+	stationToStationXY.assign(request_info->stationToStationXY,
+		request_info->stationToStationXY + STATION_TO_STATION_XY_LENGTH);
 }
 
-void HAPClient::setPairVerifyInfo(const uint8_t *sharedSecretForSession,
-		const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY)
+void HAPClient::setPairVerifyInfo(const byte_string& sharedSecretForSession,
+	const byte_string& controllerLongTermPublicKey, const byte_string& stationToStationXY)
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
 
-	memcpy(request_info->sharedSecretForSession, sharedSecretForSession,
+	memcpy(request_info->sharedSecretForSession, sharedSecretForSession.data(),
 		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->controllerLongTermPublicKey, controllerLongTermPublicKey,
+	memcpy(request_info->controllerLongTermPublicKey, controllerLongTermPublicKey.data(),
 		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->stationToStationXY, stationToStationXY,
-		2 * SESSION_SECURITY_KEY_LENGTH);
+	memcpy(request_info->stationToStationXY, stationToStationXY.data(),
+		STATION_TO_STATION_XY_LENGTH);
 }
 
 void HAPClient::setSessionKeys(
-	const uint8_t *accessoryToControllerKey, 
-	const uint8_t *controllerToAccessoryKey)
+	const byte_string& accessoryToControllerKey, const byte_string& controllerToAccessoryKey)
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
 
 	request_info->isSecuredSession = 1;
 	memcpy(request_info->accessoryToControllerKey,
-		accessoryToControllerKey, SESSION_SECURITY_KEY_LENGTH);
+		accessoryToControllerKey.data(), SESSION_SECURITY_KEY_LENGTH);
 	memcpy(request_info->controllerToAccessoryKey,
-		controllerToAccessoryKey, SESSION_SECURITY_KEY_LENGTH);
+		controllerToAccessoryKey.data(), SESSION_SECURITY_KEY_LENGTH);
 }
 
 const char* HAPClient::getMessage() const
 {
 	return CivetServer::getBody(_conn);
 }
+
 
 int HAPClient::getMessageLength() const
 {

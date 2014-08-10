@@ -42,14 +42,14 @@ public:
 		HAP::HAPMessageContentType contentType = HAP::HAPMessageContentTypeJSON);
 	void sendHeaderWithoutBody(HAP::HAPStatus status);
 
-	void getPairVerifyInfo(uint8_t *sharedSecretForSession,
-		uint8_t *controllerLongTermPublicKey, uint8_t *stationToStationXY);
+	void getPairVerifyInfo(byte_string& sharedSecretForSession,
+		byte_string& controllerLongTermPublicKey, byte_string& stationToStationXY);
 
-	void setPairVerifyInfo(const uint8_t *sharedSecretForSession,
-		const uint8_t *controllerLongTermPublicKey, const uint8_t *stationToStationXY);
+	void setPairVerifyInfo(const byte_string& sharedSecretForSession,
+		const byte_string& controllerLongTermPublicKey, const byte_string& stationToStationXY);
 
 	void setSessionKeys(
-		const uint8_t *accessoryToControllerKey, const uint8_t *controllerToAccessoryKey);
+		const byte_string& accessoryToControllerKey, const byte_string& controllerToAccessoryKey);
 
 private:
 	struct mg_connection* _conn;
