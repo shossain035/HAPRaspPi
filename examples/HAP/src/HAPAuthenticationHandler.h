@@ -10,13 +10,13 @@ namespace HAPAuthentication
 	enum TLVType
 	{
 		TLVTypeMethod = 0x00,
-		TLVTypeUser = 0x01,
+		TLVTypeIdentifier = 0x01,
 		TLVTypeSalt = 0x02,
 		TLVTypePublicKey = 0x03,
 		TLVTypeProof = 0x04,
 		TLVTypeEncryptedData = 0x05,
+		TLVTypeState = 0x06,
 		TLVTypeAuthTag = 0x06,
-		TLVTypeState = 0x07,
 		TLVTypeStatus = 0x08,
 		TLVTypeRetryDelay = 0x09,
 		TLVTypeCertificate = 0x0A,
@@ -67,6 +67,7 @@ private:
 	bool prepareEncryptedAccessoryData(const byte_string& sharedEncryptionDecryptionKey,
 				const byte_string& accessoryLongTermPublicKey, TLVList& responseTLVList);
 	
+	static const char * userNameForPairSetup;
 	//todo: read from file
 	static const char * _password;
 	static byte_string _accessoryUsername;

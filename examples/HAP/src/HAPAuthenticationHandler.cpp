@@ -7,13 +7,14 @@ extern "C"
 }
 
 #define TLV_VALUE_MAXIMUM_LENGTH          255
-#define SRP_2048_NG_INDEX                 8
+#define SRP_3072_NG_INDEX                 9
 #define SALT_LENGTH                       16
 
 using namespace HAPAuthentication;
 
+const char* HAPAuthenticationHandler::userNameForPairSetup = "Pair-Setup";
 //todo: read these from file
-const char* HAPAuthenticationHandler::_password = "1234";
+const char* HAPAuthenticationHandler::_password = "143-17-632";
 byte_string HAPAuthenticationHandler::_accessoryUsername;
 
 HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
@@ -81,14 +82,6 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 	switch (tlvState) {
 		case M1:
 		{	
-			TLV_ref userTLV = getTLVForType(TLVTypeUser, requestTLVList);
-			if (NULL == userTLV) {
-				//todo: send error
-				return HAP::BAD_REQUEST;
-			}
-
-			byte_string username = userTLV->getValue();
-			
 			//clear the previous session and create a new one
 			//todo: reset _sessionRef after timeout. otherwise no body can pair
 			if (_srpSessionRef != NULL && SRP_free(_srpSessionRef) < 0) {
@@ -98,15 +91,14 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			_srpSessionRef = SRP_new(SRP6a_server_method());
 			
 			//set username
-			if (SRP_set_user_raw(_srpSessionRef, username.data(), username.size()) < 0) {
+			if (SRP_set_username(_srpSessionRef, userNameForPairSetup) < 0) {
 				printf("failed to set username: \n");
 				return HAP::INTERNAL_ERROR;
 			}
-			
 			//set N, G, salt
 			byte_string salt;
 			HAPAuthenticationUtility::generateRandomBytes(salt, SALT_LENGTH);				
-			struct t_preconf* predefinedSRPConstant = t_getpreparam(SRP_2048_NG_INDEX);
+			struct t_preconf* predefinedSRPConstant = t_getpreparam(SRP_3072_NG_INDEX);
 
 			if (SRP_set_params(
 					_srpSessionRef, 
@@ -124,6 +116,13 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				printf("SRP_set_authenticator failed\n");
 				return HAP::INTERNAL_ERROR;
 			}
+
+			/*if (SRP_set_authenticator(_srpSessionRef, 
+					reinterpret_cast<const unsigned char*>(_password), strlen(_password)) < 0) {
+				printf("SRP_set_authenticator failed\n");
+				return HAP::INTERNAL_ERROR;
+			}
+			*/
 			//generate SRP public key
 			cstr* accessorySRPPublicKey = NULL;
 			if (SRP_gen_pub(_srpSessionRef, &accessorySRPPublicKey) != SRP_SUCCESS) {
@@ -151,6 +150,9 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::BAD_REQUEST;
 			}
 
+			printString(controllerSRPPublicKeyTLV->getValue(), "controllerPublicKey");
+			printString(controllerProofTLV->getValue(), "controllerProof");
+
 			byte_string controllerSRPPublicKey = controllerSRPPublicKeyTLV->getValue();
 			cstr* sharedSecretKey = NULL;
 
@@ -168,13 +170,15 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				sharedSecretKey->data + sharedSecretKey->length);
 			
 			cstr_free(sharedSecretKey);
-
+			
+			
 			byte_string controllerProof = controllerProofTLV->getValue();
 			if (SRP_SUCCESS != SRP_verify(_srpSessionRef, controllerProof.data(), controllerProof.size())) {
 				printf("SRP_verify failed\n");
 				//todo: create AuthErr TLV
 				return HAP::BAD_REQUEST;
 			}
+			
 
 			cstr* accessoryProof = NULL;
 			if (SRP_SUCCESS != SRP_respond(_srpSessionRef, &accessoryProof)) {
@@ -320,7 +324,7 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 	switch (tlvState) {
 		case M1:
 		{
-			TLV_ref controllerUsername = getTLVForType(TLVTypeUser, requestTLVList);
+			TLV_ref controllerUsername = getTLVForType(TLVTypeIdentifier, requestTLVList);
 			TLV_ref controllerPublicKey = getTLVForType(TLVTypePublicKey, requestTLVList);
 
 			if (NULL == controllerUsername || NULL == controllerPublicKey) {
@@ -358,7 +362,7 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 				sharedSecret, accessoryProof);
 
 			////setting accessory's username
-			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeUser, _accessoryUsername)));
+			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeIdentifier, _accessoryUsername)));
 			////setting accessory's public key			
 			computeTLVsFromString(TLVTypePublicKey, accessoryPublicKey, responseTLVList);
 			computeTLVsFromString(TLVTypeProof, accessoryProof, responseTLVList);
@@ -413,7 +417,7 @@ HAPAuthenticationHandler::parseRequestBody(const HAPClient& client, TLVList& tlv
 	int messageLength = client.getMessageLength();
 
 	byte_string bytes(message, message + messageLength);
-	//printString(bytes, "request");
+	printString(bytes, "request");
 
 	try {
 		byte_string::iterator begin = bytes.begin();
@@ -475,7 +479,7 @@ HAPAuthenticationHandler::prepareEncryptedAccessoryData(
 {
 	//create sub tlv
 	TLVList subTLVList;
-	subTLVList.push_back(TLV_ref(new TLV(TLVTypeUser, _accessoryUsername)));
+	subTLVList.push_back(TLV_ref(new TLV(TLVTypeIdentifier, _accessoryUsername)));
 	computeTLVsFromString(TLVTypePublicKey, accessoryLongTermPublicKey, subTLVList);
 	
 	byte_string subTLVdata;
