@@ -423,7 +423,6 @@ cleanup_and_exit:
 */
 void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B, int * len_B)
 {
-	BIGNUM             *B = BN_new();
 	BIGNUM             *k = 0;
 	BIGNUM             *tmp1 = BN_new();
 	BIGNUM             *tmp2 = BN_new();
@@ -432,8 +431,9 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	*len_B = 0;
 	*bytes_B = 0;
 	ver->b = BN_new();
+	ver->B = BN_new();
 
-	if (!B || ver->b || !tmp1 || !tmp2 || !ctx)
+	if (!ver->B || ver->b || !tmp1 || !tmp2 || !ctx)
 		goto cleanup_and_exit;
 
 	BN_rand(ver->b, 256, -1, 0);
@@ -442,9 +442,9 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	/* B = kv + g^b */
 	BN_mul(tmp1, k, ver->v, ctx);
 	BN_mod_exp(tmp2, ver->ng->g, ver->b, ver->ng->N, ctx);
-	BN_add(B, tmp1, tmp2);
+	BN_add(ver->B, tmp1, tmp2);
 
-	*len_B = BN_num_bytes(B);
+	*len_B = BN_num_bytes(ver->B);
 	*bytes_B = (const unsigned char *)malloc(*len_B);
 
 	if (!*bytes_B)
@@ -456,14 +456,10 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 		goto cleanup_and_exit;
 	}
 
-	BN_bn2bin(B, (unsigned char *)*bytes_B);
-
-	ver->bytes_B = *bytes_B;
-
-
+	BN_bn2bin(ver->B, (unsigned char *)*bytes_B);
+	
 cleanup_and_exit:
-	if (k) BN_free(k);
-	BN_free(B);
+	if (k) BN_free(k);	
 	BN_free(tmp1);
 	BN_free(tmp2);
 	BN_CTX_free(ctx);
@@ -473,15 +469,14 @@ cleanup_and_exit:
 
 void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A, int len_A)
 {
-	BIGNUM             *A = BN_bin2bn(bytes_A, len_A, NULL);
-	BIGNUM             *B = BN_bin2bn(ver->bytes_B, ver->len_B, NULL);
+	BIGNUM             *A = BN_bin2bn(bytes_A, len_A, NULL);	
 	BIGNUM             *S = BN_new();	
 	BIGNUM             *u = 0;
 	BIGNUM             *tmp1 = BN_new();
 	BIGNUM             *tmp2 = BN_new();
 	BN_CTX             *ctx = BN_CTX_new();
 		
-	if (!A || !B || !S || !tmp1 || !tmp2 || !ctx)
+	if (!A || !S || !tmp1 || !tmp2 || !ctx)
 		goto cleanup_and_exit;
 
 
@@ -489,7 +484,7 @@ void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A,
 	BN_mod(tmp1, A, ver->ng->N, ctx);
 	if (!BN_is_zero(tmp1))
 	{
-		u = H_nn(ver->hash_alg, A, B);
+		u = H_nn(ver->hash_alg, A, ver->B);
 
 		/* S = (A *(v^u)) ^ b */
 		BN_mod_exp(tmp1, ver->v, u, ver->ng->N, ctx);
@@ -498,14 +493,13 @@ void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A,
 
 		hash_num(ver->hash_alg, S, ver->session_key);
 
-		calculate_M(ver->hash_alg, ver->ng, ver->M, ver->username, ver->s, A, B, ver->session_key);
+		calculate_M(ver->hash_alg, ver->ng, ver->M, ver->username, ver->s, A, ver->B, ver->session_key);
 		calculate_H_AMK(ver->hash_alg, ver->H_AMK, A, ver->M, ver->session_key);		
 	}
 
 cleanup_and_exit:		
 	BN_free(A);
-	if (u) BN_free(u);
-	BN_free(B);
+	if (u) BN_free(u);	
 	BN_free(S);
 	BN_free(tmp1);
 	BN_free(tmp2);
@@ -559,6 +553,5 @@ SRPVerifier::~SRPVerifier() {
 	BN_free(b);
 	BN_free(s);
 	BN_free(B);
-	free((char *)username);
-	free((unsigned char *)bytes_B);	
+	free((char *)username);	
 }
