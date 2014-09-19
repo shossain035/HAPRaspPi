@@ -31,6 +31,20 @@ SRPResult SRPManager::getHostPublicKeyAndSalt(
 SRPResult SRPManager::getHostProof(
 	const byte_string & clientPublicKey, const  byte_string & clientProof,
 	byte_string & hostProof) {
+
+	srp_compute_shared_secret(_verifier.get(), clientPublicKey.data(), clientPublicKey.size());
+	const unsigned char * hostProofString = 0;
+
+	srp_verifier_verify_session(_verifier.get(), clientProof.data(), &hostProofString);
+
+	if (!hostProofString) {
+		printf("User authentication failed!\n");
+		return errorOccured();
+	}
+
+	hostProof.assign(hostProofString, hostProofString + clientProof.size());
+	delete hostProofString;
+
 	return SRPResult::SRP_SUCCSESS;
 }
 

@@ -1,3 +1,5 @@
+//WARNING: potential memory leak if functions are called out of order or repeated
+
 /*
  * Secure Remote Password 6a implementation
  * Copyright (c) 2010 Tom Cocagne. All rights reserved.
@@ -175,9 +177,7 @@ SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, cons
 */
 void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B, int * len_B);
 
-
-void                  srp_verifier_delete( SRPVerifier * ver );
-
+void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A, int len_A);
 
 int                   srp_verifier_is_authenticated( SRPVerifier * ver );
 
