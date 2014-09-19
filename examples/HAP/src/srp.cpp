@@ -414,7 +414,7 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	printf("srp_create_salted_verifier\n");
 cleanup_and_exit:
-	BN_free(x);
+	if (x) BN_free(x);
 	BN_CTX_free(ctx);
 
 	return ver;
@@ -430,6 +430,7 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	BIGNUM             *k = 0;
 	BIGNUM             *tmp1 = BN_new();
 	BIGNUM             *tmp2 = BN_new();
+	BIGNUM             *tmp3 = BN_new();
 	BN_CTX             *ctx = BN_CTX_new();
 
 	*len_B = 0;
@@ -442,13 +443,14 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 		goto cleanup_and_exit;		
 	}		
 
-	BN_rand(ver->b, 256, -1, 0);
+	BN_rand(ver->b, 512, -1, 0);
 	k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
 
-	/* B = kv + g^b */
+	/* B = ( kv + g^b ) mod N */
 	BN_mul(tmp1, k, ver->v, ctx);
 	BN_mod_exp(tmp2, ver->ng->g, ver->b, ver->ng->N, ctx);
-	BN_add(ver->B, tmp1, tmp2);
+	BN_add(tmp3, tmp1, tmp2);
+	BN_mod(ver->B, tmp3, ver->ng->N, ctx);
 
 	*len_B = BN_num_bytes(ver->B);
 	*bytes_B = (const unsigned char *)malloc(*len_B);
@@ -470,6 +472,7 @@ cleanup_and_exit:
 	if (k) BN_free(k);	
 	BN_free(tmp1);
 	BN_free(tmp2);
+	BN_free(tmp3);
 	BN_CTX_free(ctx);
 
 }
