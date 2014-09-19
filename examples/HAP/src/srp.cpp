@@ -501,8 +501,7 @@ cleanup_and_exit:
 */
 void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B, int * len_B)
 {
-	BIGNUM             *B = BN_new();
-	BIGNUM             *b = BN_new();
+	BIGNUM             *B = BN_new();	
 	BIGNUM             *v = BN_bin2bn(ver->bytes_v, ver->len_v, NULL);
 	BIGNUM             *k = 0;
 	BIGNUM             *tmp1 = BN_new();
@@ -511,18 +510,17 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	
 	*len_B = 0;
 	*bytes_B = 0;
+	ver->b = BN_new();
 
-	if ( !B || !b || !tmp1 || !tmp2 || !ctx )
+	if (!B || ver->b || !tmp1 || !tmp2 || !ctx)
 		goto cleanup_and_exit;
-
 	
-	BN_rand(b, 256, -1, 0);
-
+	BN_rand(ver->b, 256, -1, 0);
 	k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
 
 	/* B = kv + g^b */
 	BN_mul(tmp1, k, v, ctx);
-	BN_mod_exp(tmp2, ver->ng->g, b, ver->ng->N, ctx);
+	BN_mod_exp(tmp2, ver->ng->g, ver->b, ver->ng->N, ctx);
 	BN_add(B, tmp1, tmp2);
 		
 	*len_B = BN_num_bytes(B);
@@ -544,15 +542,13 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 
 cleanup_and_exit:
 	if (k) BN_free(k);
-	BN_free(B);
-	BN_free(b);
+	BN_free(B);	
 	BN_free(v);
 	BN_free(tmp1);
 	BN_free(tmp2);
 	BN_CTX_free(ctx);
 
 }
-
 
 
 
@@ -676,6 +672,7 @@ void srp_verifier_delete( SRPVerifier * ver )
    if (ver)
    {
       delete_ng( ver->ng );
+	  BN_free(ver->b);
       free( (char *) ver->username );
       free( (unsigned char *) ver->bytes_B );
 	  free( (unsigned char *) ver->bytes_v );
@@ -958,6 +955,7 @@ void srp_user_verify_session( struct SRPUser * usr, const unsigned char * bytes_
 
 SRPVerifier::~SRPVerifier() {
 	delete_ng(ng);
+	BN_free(b);
 	free((char *)username);
 	free((unsigned char *)bytes_B);
 	free((unsigned char *)bytes_v);	

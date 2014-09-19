@@ -93,6 +93,7 @@ public:
 	const char          * username;
 	const unsigned char * bytes_B;
 	const unsigned char * bytes_v;
+	BIGNUM              * b;
 	int                   len_B;
 	int                   len_v;
 	int                   authenticated;
