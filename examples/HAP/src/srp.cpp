@@ -78,7 +78,7 @@ static struct NGHex global_Ng_constants[] = {
 
 static NGConstant * new_ng( SRP_NGType ng_type, const char * n_hex, const char * g_hex )
 {
-    NGConstant * ng   = (NGConstant *) malloc( sizeof(NGConstant) );
+	NGConstant * ng   = new NGConstant;
     ng->N             = BN_new();
     ng->g             = BN_new();
 
@@ -105,7 +105,7 @@ static void delete_ng( NGConstant * ng )
       BN_free( ng->g );
       ng->N = 0;
       ng->g = 0;
-      free(ng);
+      delete ng;
    }
 }
 
@@ -192,13 +192,13 @@ static BIGNUM * H_nn( SRP_HashAlgorithm alg, const BIGNUM * n1, const BIGNUM * n
     int             len_n1 = BN_num_bytes(n1);
     int             len_n2 = BN_num_bytes(n2);
     int             nbytes = len_n1 + len_n2;
-    unsigned char * bin    = (unsigned char *) malloc( nbytes );
+	unsigned char * bin    = new unsigned char[nbytes];
     if (!bin)
        return 0;
     BN_bn2bin(n1, bin);
     BN_bn2bin(n2, bin + len_n1);
     hash( alg, bin, nbytes, buff );
-    free(bin);
+    delete [] bin;
     return BN_bin2bn(buff, hash_length(alg), NULL);
 }
 
@@ -207,13 +207,13 @@ static BIGNUM * H_ns( SRP_HashAlgorithm alg, const BIGNUM * n, const unsigned ch
     unsigned char   buff[ SHA512_DIGEST_LENGTH ];
     int             len_n  = BN_num_bytes(n);
     int             nbytes = len_n + len_bytes;
-    unsigned char * bin    = (unsigned char *) malloc( nbytes );
+	unsigned char * bin = new unsigned char[nbytes];
     if (!bin)
        return 0;
     BN_bn2bin(n, bin);
     memcpy( bin + len_n, bytes, len_bytes );
     hash( alg, bin, nbytes, buff );
-    free(bin);
+    delete [] bin;
     return BN_bin2bn(buff, hash_length(alg), NULL);
 }
     
@@ -236,23 +236,23 @@ static BIGNUM * calculate_x( SRP_HashAlgorithm alg, const BIGNUM * salt, const c
 static void update_hash_n( SRP_HashAlgorithm alg, HashCTX *ctx, const BIGNUM * n )
 {
     unsigned long len = BN_num_bytes(n);
-    unsigned char * n_bytes = (unsigned char *) malloc( len );
+    unsigned char * n_bytes = new unsigned char [len];
     if (!n_bytes)
        return;
     BN_bn2bin(n, n_bytes);
     hash_update(alg, ctx, n_bytes, len);
-    free(n_bytes);
+    delete [] n_bytes;
 }
 
 static void hash_num( SRP_HashAlgorithm alg, const BIGNUM * n, unsigned char * dest )
 {
     int             nbytes = BN_num_bytes(n);
-    unsigned char * bin    = (unsigned char *) malloc( nbytes );
+	unsigned char * bin    = new unsigned char[nbytes];
     if(!bin)
        return;
     BN_bn2bin(n, bin);
     hash( alg, bin, nbytes, dest );
-    free(bin);
+	delete [] bin;
 }
 
 static void calculate_M( SRP_HashAlgorithm alg, NGConstant *ng, unsigned char * dest, const char * I, const BIGNUM * s,
@@ -383,7 +383,7 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	init_random(); /* Only happens once */
 
-	ver->username = (char *)malloc(ulen);
+	ver->username = new char [ulen];
 	ver->hash_alg = alg;
 	ver->ng = new_ng(ng_type, NULL, NULL);
 	ver->s = BN_new();
@@ -412,7 +412,7 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	//logging begin
 	len_v = BN_num_bytes(ver->v);
-	bytes_v = (unsigned char *)malloc(len_v);
+	bytes_v = new unsigned char [len_v];
 	BN_bn2bin(ver->v, (unsigned char *)bytes_v);
 
 	printf("len_v: %d\n", len_v);
@@ -423,11 +423,11 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	printf("\n");
 
-	free(bytes_v);
+	delete [] bytes_v;
 	//logging end
 
 	*len_s = BN_num_bytes(ver->s);
-	*bytes_s = (const unsigned char *)malloc(*len_s);
+	*bytes_s = new unsigned char[*len_s];
 
 	if (!bytes_s)
 		goto cleanup_and_exit;
@@ -474,7 +474,7 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	BN_hex2bn(&ver->b, "E487CB59D31AC550471E81F00F6928E01DDA08E974A004F49E61F5D105284D20");
 	//k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
 	len = BN_num_bytes(ver->ng->N);
-	bytes_g = (unsigned char *)malloc(len);
+	bytes_g = new unsigned char[len];
 
 	for (int i = 0; i < len; i++) {
 		bytes_g[i] = 0;
@@ -484,7 +484,7 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 
 	k = H_ns(ver->hash_alg, ver->ng->N, bytes_g, len);
 
-	free(bytes_g);
+	delete [] bytes_g;
 	/* B = ( kv + g^b mod N ) mod N */
 	BN_mul(tmp1, k, ver->v, ctx);
 	BN_mod_exp(tmp2, ver->ng->g, ver->b, ver->ng->N, ctx);
@@ -492,11 +492,11 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	BN_mod(ver->B, tmp3, ver->ng->N, ctx);
 
 	*len_B = BN_num_bytes(ver->B);
-	*bytes_B = (const unsigned char *)malloc(*len_B);
+	*bytes_B = new unsigned char[*len_B];
 
 	if (!*bytes_B)
 	{
-		free((void*)ver->username);
+		delete [] ver->username;
 		delete ver;
 		ver = 0;
 		*len_B = 0;
@@ -529,7 +529,7 @@ void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A,
 	if (!A || !S || !tmp1 || !tmp2 || !ctx)
 		goto cleanup_and_exit;
 
-
+	printf("srp_compute_shared_secret\n");
 	/* SRP-6a safety check */
 	BN_mod(tmp1, A, ver->ng->N, ctx);
 	if (!BN_is_zero(tmp1))
@@ -547,6 +547,7 @@ void srp_compute_shared_secret(SRPVerifier * ver, const unsigned char * bytes_A,
 		calculate_H_AMK(ver->hash_alg, ver->H_AMK, A, ver->M, ver->session_key);		
 	}
 
+	printf("end srp_compute_shared_secret\n");
 cleanup_and_exit:		
 	BN_free(A);
 	if (u) BN_free(u);	
@@ -603,5 +604,5 @@ SRPVerifier::~SRPVerifier() {
 	BN_free(b);
 	BN_free(s);
 	BN_free(B);
-	free((char *)username);	
+	delete [] username;	
 }

@@ -12,7 +12,7 @@ SRPResult SRPManager::getHostPublicKeyAndSalt(
 		SRP_SHA512, SRP_NG_3072, userName, (const unsigned char *)password, strlen(password), &saltString, &saltLength));
 
 	salt.assign(saltString, saltString + saltLength);
-	delete saltString;
+	delete [] saltString;
 
 	srp_generate_public_key(_verifier.get(), &publicKey, &publicKeyLength);
 
@@ -23,7 +23,7 @@ SRPResult SRPManager::getHostPublicKeyAndSalt(
 	}
 
 	hostPublicKey.assign(publicKey, publicKey + publicKeyLength);
-	delete publicKey;
+	delete [] publicKey;
 
 	return SRPResult::SRP_SUCCSESS;
 }
@@ -31,6 +31,8 @@ SRPResult SRPManager::getHostPublicKeyAndSalt(
 SRPResult SRPManager::getHostProof(
 	const byte_string & clientPublicKey, const  byte_string & clientProof,
 	byte_string & hostProof) {
+
+	printf("getHostProof\n");
 
 	srp_compute_shared_secret(_verifier.get(), clientPublicKey.data(), clientPublicKey.size());
 	const unsigned char * hostProofString = 0;
@@ -42,8 +44,7 @@ SRPResult SRPManager::getHostProof(
 		return errorOccured();
 	}
 
-	hostProof.assign(hostProofString, hostProofString + clientProof.size());
-	delete hostProofString;
+	hostProof.assign(hostProofString, hostProofString + clientProof.size());	
 
 	return SRPResult::SRP_SUCCSESS;
 }
