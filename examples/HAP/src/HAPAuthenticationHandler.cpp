@@ -1,36 +1,21 @@
 #include "HAPAuthenticationHandler.h"
 #include "HAPAuthenticationUtility.h"
 
-extern "C"
-{
-#include "t_pwd.h"
-}
-
 #define TLV_VALUE_MAXIMUM_LENGTH          255
 #define SRP_3072_NG_INDEX                 9
 #define SALT_LENGTH                       16
 
 using namespace HAPAuthentication;
 
-const char* HAPAuthenticationHandler::userNameForPairSetup = "Pair-Setup";
+const char* HAPAuthenticationHandler::_userNameForPairSetup = "Pair-Setup";
 //todo: read these from file
 const char* HAPAuthenticationHandler::_password = "143-17-632";
 byte_string HAPAuthenticationHandler::_accessoryUsername;
 
-HAPAuthenticationHandler::HAPAuthenticationHandler() : _srpSessionRef(NULL)
+HAPAuthenticationHandler::HAPAuthenticationHandler()
 {
 	char accessoryUsername[] = "4e:06:19:0e:c0:87";
-	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));
-	SRP_initialize_library();
-}
-
-HAPAuthenticationHandler::~HAPAuthenticationHandler()
-{
-	//todo: put spr clean up inside a function
-	SRP_free(_srpSessionRef);
-	_srpSessionRef = NULL;
-
-	SRP_finalize_library();
+	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));	
 }
 
 void 
@@ -82,63 +67,22 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 	switch (tlvState) {
 		case M1:
 		{	
-			//clear the previous session and create a new one
-			//todo: reset _sessionRef after timeout. otherwise no body can pair
-			if (_srpSessionRef != NULL && SRP_free(_srpSessionRef) < 0) {
-				printf("failed to clear srp session\n");
-				return HAP::INTERNAL_ERROR;
-			}
-			_srpSessionRef = SRP_new(SRP6a_server_method());
+			byte_string accessorySRPPublicKey, salt;
 			
-			//set username
-			if (SRP_set_username(_srpSessionRef, userNameForPairSetup) < 0) {
-				printf("failed to set username: \n");
-				return HAP::INTERNAL_ERROR;
-			}
-			//set N, G, salt
-			byte_string salt;
-			HAPAuthenticationUtility::generateRandomBytes(salt, SALT_LENGTH);				
-			struct t_preconf* predefinedSRPConstant = t_getpreparam(SRP_3072_NG_INDEX);
+			if (SRPResult::SRP_SUCCSESS != 
+				srpManager.getHostPublicKeyAndSalt(_userNameForPairSetup, _password, accessorySRPPublicKey, salt)) {
 
-			if (SRP_set_params(
-					_srpSessionRef, 
-					predefinedSRPConstant->modulus.data, 
-					predefinedSRPConstant->modulus.len,
-					predefinedSRPConstant->generator.data, 
-					predefinedSRPConstant->generator.len,
-					salt.data(), 
-					SALT_LENGTH) < 0) {
-				printf("SRP_set_params failed\n");
-				return HAP::INTERNAL_ERROR;
-			}
-			//set password
-			if (SRP_set_auth_password(_srpSessionRef, _password) < 0) {
-				printf("SRP_set_authenticator failed\n");
-				return HAP::INTERNAL_ERROR;
-			}
-
-			/*if (SRP_set_authenticator(_srpSessionRef, 
-					reinterpret_cast<const unsigned char*>(_password), strlen(_password)) < 0) {
-				printf("SRP_set_authenticator failed\n");
-				return HAP::INTERNAL_ERROR;
-			}
-			*/
-			//generate SRP public key
-			cstr* accessorySRPPublicKey = NULL;
-			if (SRP_gen_pub(_srpSessionRef, &accessorySRPPublicKey) != SRP_SUCCESS) {
-				printf("SRP_gen_pub failed\n");
+				printf("failed to get accessory public key\n");
 				return HAP::INTERNAL_ERROR;
 			}
 			
 			////setting accessory's public key			
-			computeTLVsFromString(TLVTypePublicKey, 
-				accessorySRPPublicKey->data, accessorySRPPublicKey->length, responseTLVList);
+			computeTLVsFromString(TLVTypePublicKey, accessorySRPPublicKey, responseTLVList);
 			////setting salt
 			responseTLVList.push_back(TLV_ref(new TLV(TLVTypeSalt, salt)));
 			////setting state
 			responseTLVList.push_back(createTLVForState(M2));
-
-			cstr_free(accessorySRPPublicKey);
+			
 			break;
 		}
 		case M3:
@@ -150,49 +94,19 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::BAD_REQUEST;
 			}
 
-			printString(controllerSRPPublicKeyTLV->getValue(), "controllerPublicKey");
-			printString(controllerProofTLV->getValue(), "controllerProof");
-
-			byte_string controllerSRPPublicKey = controllerSRPPublicKeyTLV->getValue();
-			cstr* sharedSecretKey = NULL;
-
-			if (SRP_compute_key(_srpSessionRef, 
-								&sharedSecretKey, 
-								controllerSRPPublicKey.data(),
-								controllerSRPPublicKey.size()) != SRP_SUCCESS) {
-				printf("SRP_compute_key failed\n");
+			byte_string accessoryProof;
+			if (SRPResult::SRP_SUCCSESS != srpManager.getHostProof(
+				controllerSRPPublicKeyTLV->getValue(), controllerProofTLV->getValue(), accessoryProof) ) {
+				
+				printf("failed get SRP proof\n");
 				return HAP::INTERNAL_ERROR;
 			}
 			
-			//save shared secret session key
-			_srpSessionSecretKey.assign(
-				sharedSecretKey->data, 
-				sharedSecretKey->data + sharedSecretKey->length);
-			
-			cstr_free(sharedSecretKey);
-			
-			
-			byte_string controllerProof = controllerProofTLV->getValue();
-			if (SRP_SUCCESS != SRP_verify(_srpSessionRef, controllerProof.data(), controllerProof.size())) {
-				printf("SRP_verify failed\n");
-				//todo: create AuthErr TLV
-				return HAP::BAD_REQUEST;
-			}
-			
-
-			cstr* accessoryProof = NULL;
-			if (SRP_SUCCESS != SRP_respond(_srpSessionRef, &accessoryProof)) {
-				printf("SRP_respond failed\n");
-				return HAP::INTERNAL_ERROR;
-			}
-
-			////setting accessory's proof
-			computeTLVsFromString(TLVTypeProof, 
-				accessoryProof->data, accessoryProof->length, responseTLVList);
+						
+			computeTLVsFromString(TLVTypeProof, accessoryProof, responseTLVList);
 			////setting state
 			responseTLVList.push_back(createTLVForState(M4));
-
-			cstr_free(accessoryProof);			
+			
 			break;
 		}
 		case M5:
@@ -205,10 +119,18 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				|| controllerAuthTag == NULL) {
 				return HAP::BAD_REQUEST;
 			}
+
+			byte_string srpSessionSecretKey;
+
+			if (SRPResult::SRP_SUCCSESS != srpManager.getSharedSecretKey(srpSessionSecretKey)) {
+				printf("failed to get SRP shared secret\n");
+				return HAP::INTERNAL_ERROR;
+			}
+
 			//get the encryptionKey
 			byte_string sharedEncryptionDecryptionKey;
 			if (!HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
-				_srpSessionSecretKey, sharedEncryptionDecryptionKey)) {
+				srpSessionSecretKey, sharedEncryptionDecryptionKey)) {
 				printf("failed to create encryptionKey\n");
 				return HAP::INTERNAL_ERROR;
 			}
@@ -230,8 +152,8 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				accessoryLongTermPublicKey, accessoryLongTermSecretKey);
 			
 			byte_string controllerUsername;
-			controllerUsername.assign(_srpSessionRef->username->data, 
-				_srpSessionRef->username->data + _srpSessionRef->username->length);
+			//controllerUsername.assign(_srpSessionRef->username->data, 
+			//	_srpSessionRef->username->data + _srpSessionRef->username->length);
 			//save pairing
 			HAPPairing pairing(controllerUsername,
 							   controllerDecryptedLongTermPublicKey,
@@ -249,9 +171,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			}
 			
 
-			//srp session is over			
-			SRP_free(_srpSessionRef);
-			_srpSessionRef = NULL;
+			srpManager.endSession();
 			break;
 		}
 		default:

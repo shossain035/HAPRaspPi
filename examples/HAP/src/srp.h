@@ -57,16 +57,15 @@
 #ifndef SRP_H
 #define SRP_H
 
+#include <openssl/bn.h>
+#include <openssl/sha.h>
 
-struct SRPVerifier;
+
 struct SRPUser;
 
 typedef enum
 {
-    SRP_NG_1024,
-    SRP_NG_2048,
-    SRP_NG_4096,
-    SRP_NG_8192,
+    SRP_NG_3072,
     SRP_NG_CUSTOM
 } SRP_NGType;
 
@@ -78,6 +77,29 @@ typedef enum
     SRP_SHA384, 
     SRP_SHA512
 } SRP_HashAlgorithm;
+
+typedef struct
+{
+	BIGNUM     * N;
+	BIGNUM     * g;
+} NGConstant;
+
+struct SRPVerifier
+{
+	SRP_HashAlgorithm  hash_alg;
+	NGConstant        *ng;
+
+	const char          * username;
+	const unsigned char * bytes_B;
+	const unsigned char * bytes_v;
+	int                   len_B;
+	int                   len_v;
+	int                   authenticated;
+
+	unsigned char M[SHA512_DIGEST_LENGTH];
+	unsigned char H_AMK[SHA512_DIGEST_LENGTH];
+	unsigned char session_key[SHA512_DIGEST_LENGTH];
+};
 
 
 /* This library will automatically seed the OpenSSL random number generator
@@ -117,6 +139,18 @@ void srp_create_salted_verification_key( SRP_HashAlgorithm alg,
                                          const unsigned char ** bytes_v, int * len_v,
                                          const char * n_hex, const char * g_hex );
 
+
+
+/* Out: bytes_s, len_s
+*
+* The caller is responsible for freeing the memory allocated for bytes_s
+*
+*/
+
+struct SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
+												 SRP_NGType ng_type, const char * username,
+												 const unsigned char * password, int len_password,
+												 const unsigned char ** bytes_s, int * len_s);
 
 /* Out: bytes_B, len_B.
  * 

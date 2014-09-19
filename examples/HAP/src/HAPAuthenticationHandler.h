@@ -3,7 +3,7 @@
 
 #include "HAPClient.h"
 #include "TLV.h"
-#include "srp.h"
+#include "SRPManager.h"
 
 namespace HAPAuthentication
 {
@@ -44,9 +44,7 @@ public:
 	void verifyPair(HAPClient& client);
 
 	//char* decryptMessage(HAPClient& client);
-	//char* encryptMessage(HAPClient& client);
-
-	virtual ~HAPAuthenticationHandler();
+	//char* encryptMessage(HAPClient& client);	
 private:
 	HAP::HAPStatus processSetupRequest(const TLVList& requestTLVList, TLVList& responseTLVList);
 	HAP::HAPStatus processVerifyRequest(HAPClient& client, 
@@ -67,12 +65,11 @@ private:
 	bool prepareEncryptedAccessoryData(const byte_string& sharedEncryptionDecryptionKey,
 				const byte_string& accessoryLongTermPublicKey, TLVList& responseTLVList);
 	
-	static const char * userNameForPairSetup;
+	static const char * _userNameForPairSetup;
 	//todo: read from file
 	static const char * _password;
 	static byte_string _accessoryUsername;
 
-	SRP* _srpSessionRef;
-	byte_string _srpSessionSecretKey;
+	SRPManager srpManager;	
 };
 #endif
