@@ -16,6 +16,11 @@ HAPAuthenticationHandler::HAPAuthenticationHandler()
 {
 	char accessoryUsername[] = "4e:06:19:0e:c0:87";
 	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));	
+
+	byte_string accessorySRPPublicKey, salt;
+	srpManager.getHostPublicKeyAndSalt(_userNameForPairSetup, _password, accessorySRPPublicKey, salt);
+
+	printString(salt, "salt");
 }
 
 void 

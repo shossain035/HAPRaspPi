@@ -17,7 +17,7 @@ SRPResult SRPManager::getHostPublicKeyAndSalt(
 	srp_generate_public_key(_verifier.get(), &publicKey, &publicKeyLength);
 
 	if (!publicKeyLength) {
-		printf("failed to generate public key");
+		printf("failed to generate public key\n");
 				
 		return errorOccured();
 	}
