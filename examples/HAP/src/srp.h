@@ -84,8 +84,9 @@ typedef struct
 	BIGNUM     * g;
 } NGConstant;
 
-struct SRPVerifier
+class SRPVerifier
 {
+public:
 	SRP_HashAlgorithm  hash_alg;
 	NGConstant        *ng;
 
@@ -99,6 +100,8 @@ struct SRPVerifier
 	unsigned char M[SHA512_DIGEST_LENGTH];
 	unsigned char H_AMK[SHA512_DIGEST_LENGTH];
 	unsigned char session_key[SHA512_DIGEST_LENGTH];
+	
+	~SRPVerifier();
 };
 
 
@@ -147,7 +150,7 @@ void srp_create_salted_verification_key( SRP_HashAlgorithm alg,
 *
 */
 
-struct SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
+SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 												 SRP_NGType ng_type, const char * username,
 												 const unsigned char * password, int len_password,
 												 const unsigned char ** bytes_s, int * len_s);
@@ -158,7 +161,7 @@ struct SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
  * 
  * The n_hex and g_hex parameters should be 0 unless SRP_NG_CUSTOM is used for ng_type
  */
-struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, const char * username,
+SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, const char * username,
                                         const unsigned char * bytes_s, int len_s, 
                                         const unsigned char * bytes_v, int len_v,
                                         const unsigned char * bytes_A, int len_A,
@@ -166,23 +169,23 @@ struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_typ
                                         const char * n_hex, const char * g_hex );
 
 
-void                  srp_verifier_delete( struct SRPVerifier * ver );
+void                  srp_verifier_delete( SRPVerifier * ver );
 
 
-int                   srp_verifier_is_authenticated( struct SRPVerifier * ver );
+int                   srp_verifier_is_authenticated( SRPVerifier * ver );
 
 
-const char *          srp_verifier_get_username( struct SRPVerifier * ver );
+const char *          srp_verifier_get_username( SRPVerifier * ver );
 
 /* key_length may be null */
-const unsigned char * srp_verifier_get_session_key( struct SRPVerifier * ver, int * key_length );
+const unsigned char * srp_verifier_get_session_key( SRPVerifier * ver, int * key_length );
 
 
-int                   srp_verifier_get_session_key_length( struct SRPVerifier * ver );
+int                   srp_verifier_get_session_key_length( SRPVerifier * ver );
 
 
 /* user_M must be exactly srp_verifier_get_session_key_length() bytes in size */
-void                  srp_verifier_verify_session( struct SRPVerifier * ver,
+void                  srp_verifier_verify_session( SRPVerifier * ver,
                                                    const unsigned char * user_M, 
                                                    const unsigned char ** bytes_HAMK );
 

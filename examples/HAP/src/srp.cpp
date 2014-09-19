@@ -427,7 +427,7 @@ void srp_create_salted_verification_key( SRP_HashAlgorithm alg,
 
 
 
-struct SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
+SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 												 SRP_NGType ng_type, const char * username,
 												 const unsigned char * password, int len_password,
 												 const unsigned char ** bytes_s, int * len_s)
@@ -437,12 +437,12 @@ struct SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 	BIGNUM     * x = 0;
 	BN_CTX     * ctx = BN_CTX_new();
 	NGConstant * ng = new_ng(ng_type, NULL, NULL);
-	struct SRPVerifier *ver = 0;
+	SRPVerifier *ver = 0;
 
 	if (!s || !v || !ctx || !ng)
 		goto cleanup_and_exit;
 
-	ver = (struct SRPVerifier *) malloc(sizeof(struct SRPVerifier));
+	ver = new SRPVerifier;
 
 	if (!ver)
 		goto cleanup_and_exit;
@@ -485,7 +485,7 @@ cleanup_and_exit:
  * 
  * On failure, bytes_B will be set to NULL and len_B will be set to 0
  */
-struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, const char * username,
+SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, const char * username,
                                         const unsigned char * bytes_s, int len_s, 
                                         const unsigned char * bytes_v, int len_v,
                                         const unsigned char * bytes_A, int len_A,
@@ -505,7 +505,7 @@ struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_typ
     BN_CTX             *ctx  = BN_CTX_new();
     int                 ulen = strlen(username) + 1;
     NGConstant         *ng   = new_ng( ng_type, n_hex, g_hex );
-    struct SRPVerifier *ver  = 0;
+    SRPVerifier *ver  = 0;
 
     *len_B   = 0;
     *bytes_B = 0;
@@ -513,7 +513,7 @@ struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_typ
     if( !s || !v || !A || !B || !S || !b || !tmp1 || !tmp2 || !ctx || !ng )
        goto cleanup_and_exit;
     
-    ver = (struct SRPVerifier *) malloc( sizeof(struct SRPVerifier) );
+    ver = new SRPVerifier;
 
     if (!ver)
        goto cleanup_and_exit;
@@ -596,7 +596,7 @@ struct SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_typ
                                         
 
 
-void srp_verifier_delete( struct SRPVerifier * ver )
+void srp_verifier_delete( SRPVerifier * ver )
 {
    if (ver)
    {
@@ -611,19 +611,19 @@ void srp_verifier_delete( struct SRPVerifier * ver )
 
 
 
-int srp_verifier_is_authenticated( struct SRPVerifier * ver )
+int srp_verifier_is_authenticated( SRPVerifier * ver )
 {
     return ver->authenticated;
 }
 
 
-const char * srp_verifier_get_username( struct SRPVerifier * ver )
+const char * srp_verifier_get_username( SRPVerifier * ver )
 {
     return ver->username;
 }
 
 
-const unsigned char * srp_verifier_get_session_key( struct SRPVerifier * ver, int * key_length )
+const unsigned char * srp_verifier_get_session_key( SRPVerifier * ver, int * key_length )
 {
     if (key_length)
         *key_length = hash_length( ver->hash_alg );
@@ -631,14 +631,14 @@ const unsigned char * srp_verifier_get_session_key( struct SRPVerifier * ver, in
 }
 
 
-int                   srp_verifier_get_session_key_length( struct SRPVerifier * ver )
+int                   srp_verifier_get_session_key_length( SRPVerifier * ver )
 {
     return hash_length( ver->hash_alg );
 }
 
 
 /* user_M must be exactly SHA512_DIGEST_LENGTH bytes in size */
-void srp_verifier_verify_session( struct SRPVerifier * ver, const unsigned char * user_M, const unsigned char ** bytes_HAMK )
+void srp_verifier_verify_session( SRPVerifier * ver, const unsigned char * user_M, const unsigned char ** bytes_HAMK )
 {
     if ( memcmp( ver->M, user_M, hash_length(ver->hash_alg) ) == 0 )
     {
@@ -879,4 +879,11 @@ void srp_user_verify_session( struct SRPUser * usr, const unsigned char * bytes_
 {
     if ( memcmp( usr->H_AMK, bytes_HAMK, hash_length(usr->hash_alg) ) == 0 )
         usr->authenticated = 1;
+}
+
+SRPVerifier::~SRPVerifier() {
+	delete_ng(ng);
+	free((char *)username);
+	free((unsigned char *)bytes_B);
+	free((unsigned char *)bytes_v);	
 }
