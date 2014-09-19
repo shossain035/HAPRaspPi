@@ -168,6 +168,12 @@ SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, cons
                                         const unsigned char ** bytes_B, int * len_B,
                                         const char * n_hex, const char * g_hex );
 
+/* Out: bytes_B, len_B.
+*
+* On failure, bytes_B will be set to NULL and len_B will be set to 0
+*/
+void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B, int * len_B);
+
 
 void                  srp_verifier_delete( SRPVerifier * ver );
 

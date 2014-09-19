@@ -428,18 +428,18 @@ void srp_create_salted_verification_key( SRP_HashAlgorithm alg,
 
 
 SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
-												 SRP_NGType ng_type, const char * username,
-												 const unsigned char * password, int len_password,
-												 const unsigned char ** bytes_s, int * len_s)
+										  SRP_NGType ng_type, const char * username,
+										  const unsigned char * password, int len_password,
+										  const unsigned char ** bytes_s, int * len_s)
 {
 	BIGNUM     * s = BN_new();
 	BIGNUM     * v = BN_new();
 	BIGNUM     * x = 0;
 	BN_CTX     * ctx = BN_CTX_new();
-	NGConstant * ng = new_ng(ng_type, NULL, NULL);
+	int          ulen = strlen(username) + 1;
 	SRPVerifier *ver = 0;
 
-	if (!s || !v || !ctx || !ng)
+	if (!s || !v || !ctx )
 		goto cleanup_and_exit;
 
 	ver = new SRPVerifier;
@@ -449,6 +449,21 @@ SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 
 	init_random(); /* Only happens once */
 
+	ver->username = (char *)malloc(ulen);
+	ver->hash_alg = alg;
+	ver->ng = new_ng(ng_type, NULL, NULL);
+
+	if (!ver->username)
+	{
+		delete ver;
+		ver = 0;
+		goto cleanup_and_exit;
+	}
+
+	memcpy((char*)ver->username, username, ulen);
+
+	ver->authenticated = 0;
+
 	BN_rand(s, 32, -1, 0);
 
 	x = calculate_x(alg, s, username, password, len_password);
@@ -456,7 +471,7 @@ SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 	if (!x)
 		goto cleanup_and_exit;
 
-	BN_mod_exp(v, ng->g, x, ng->N, ctx);
+	BN_mod_exp(v, ver->ng->g, x, ver->ng->N, ctx);
 
 	*len_s = BN_num_bytes(s);
 	ver->len_v = BN_num_bytes(v);
@@ -471,7 +486,6 @@ SRPVerifier * srp_create_salted_verifier( SRP_HashAlgorithm alg,
 	BN_bn2bin(v, (unsigned char *)ver->bytes_v);
 
 cleanup_and_exit:
-	delete_ng(ng);
 	BN_free(s);
 	BN_free(v);
 	BN_free(x);
@@ -479,6 +493,67 @@ cleanup_and_exit:
 
 	return ver;
 }
+
+
+/* Out: bytes_B, len_B.
+*
+* On failure, bytes_B will be set to NULL and len_B will be set to 0
+*/
+void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B, int * len_B)
+{
+	BIGNUM             *B = BN_new();
+	BIGNUM             *b = BN_new();
+	BIGNUM             *v = BN_bin2bn(ver->bytes_v, ver->len_v, NULL);
+	BIGNUM             *k = 0;
+	BIGNUM             *tmp1 = BN_new();
+	BIGNUM             *tmp2 = BN_new();
+	BN_CTX             *ctx = BN_CTX_new();
+	
+	*len_B = 0;
+	*bytes_B = 0;
+
+	if ( !B || !b || !tmp1 || !tmp2 || !ctx )
+		goto cleanup_and_exit;
+
+	
+	BN_rand(b, 256, -1, 0);
+
+	k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
+
+	/* B = kv + g^b */
+	BN_mul(tmp1, k, v, ctx);
+	BN_mod_exp(tmp2, ver->ng->g, b, ver->ng->N, ctx);
+	BN_add(B, tmp1, tmp2);
+		
+	*len_B = BN_num_bytes(B);
+	*bytes_B = (const unsigned char *)malloc(*len_B);
+
+	if (!*bytes_B)
+	{
+		free((void*)ver->username);
+		delete ver;
+		ver = 0;
+		*len_B = 0;
+		goto cleanup_and_exit;
+	}
+
+	BN_bn2bin(B, (unsigned char *)*bytes_B);
+
+	ver->bytes_B = *bytes_B;
+	
+
+cleanup_and_exit:
+	if (k) BN_free(k);
+	BN_free(B);
+	BN_free(b);
+	BN_free(v);
+	BN_free(tmp1);
+	BN_free(tmp2);
+	BN_CTX_free(ctx);
+
+}
+
+
 
 
 /* Out: bytes_B, len_B.
@@ -526,7 +601,7 @@ SRPVerifier *  srp_verifier_new( SRP_HashAlgorithm alg, SRP_NGType ng_type, cons
 
     if (!ver->username)
     {
-       free(ver);
+       delete ver;
        ver = 0;
        goto cleanup_and_exit;
     }

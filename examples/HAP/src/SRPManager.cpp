@@ -1,18 +1,29 @@
 #include "SRPManager.h"
-
+#include <stdio.h>
 
 SRPResult SRPManager::getHostPublicKeyAndSalt(
 	const char * userName, const char * password,
 	byte_string & hostPublicKey, byte_string & salt) {
 	
-	const unsigned char * saltString = 0;
-	int saltLength = 0;
+	const unsigned char * saltString = 0, * publicKey = 0;
+	int saltLength = 0, publicKeyLength = 0;
 	
 	_verifier.reset( srp_create_salted_verifier(
 		SRP_SHA512, SRP_NG_3072, userName, (const unsigned char *)password, strlen(password), &saltString, &saltLength));
 
 	salt.assign(saltString, saltString + saltLength);
-	free((void*) saltString);
+	delete saltString;
+
+	srp_generate_public_key(_verifier.get(), &publicKey, &publicKeyLength);
+
+	if (!publicKeyLength) {
+		printf("failed to generate public key");
+				
+		return errorOccured();
+	}
+
+	hostPublicKey.assign(publicKey, publicKey + publicKeyLength);
+	delete publicKey;
 
 	return SRPResult::SRP_SUCCSESS;
 }
@@ -28,4 +39,10 @@ SRPResult SRPManager::getSharedSecretKey(byte_string & sharedSecretKey) {
 }
 
 void SRPManager::endSession() {
+	_verifier.reset();
+}
+
+SRPResult SRPManager::errorOccured() {
+	endSession();
+	return SRPResult::SRP_FAILURE;
 }

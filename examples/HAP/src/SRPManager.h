@@ -29,6 +29,8 @@ public:
 	void endSession();
 	
 private:	
-	std::shared_ptr<SRPVerifier> _verifier;
+
+	SRPResult errorOccured();
+	std::shared_ptr<SRPVerifier> _verifier;	
 };
 #endif
