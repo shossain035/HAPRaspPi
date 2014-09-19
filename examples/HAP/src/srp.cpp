@@ -42,6 +42,7 @@
 
 
 #include "srp.h"
+#include <stdio.h>
 
 static int g_initialized = 0;
 
@@ -364,6 +365,8 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 	BN_CTX     * ctx = BN_CTX_new();
 	int          ulen = strlen(username) + 1;
 	SRPVerifier *ver = 0;
+	*len_s = 0;
+	*bytes_s = 0;
 
 	if (!ctx)
 		goto cleanup_and_exit;
@@ -409,6 +412,7 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	BN_bn2bin(ver->s, (unsigned char *)*bytes_s);
 
+	printf("srp_create_salted_verifier\n");
 cleanup_and_exit:
 	BN_free(x);
 	BN_CTX_free(ctx);
@@ -433,8 +437,10 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	ver->b = BN_new();
 	ver->B = BN_new();
 
-	if (!ver->B || ver->b || !tmp1 || !tmp2 || !ctx)
-		goto cleanup_and_exit;
+	if (!ver->B || !ver->b || !tmp1 || !tmp2 || !ctx) {
+		printf("ver->B \n");
+		goto cleanup_and_exit;		
+	}		
 
 	BN_rand(ver->b, 256, -1, 0);
 	k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
@@ -453,11 +459,13 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 		delete ver;
 		ver = 0;
 		*len_B = 0;
-		goto cleanup_and_exit;
+		printf("bytes_B \n");
+		goto cleanup_and_exit;		
 	}
 
 	BN_bn2bin(ver->B, (unsigned char *)*bytes_B);
 	
+	printf("srp_generate_public_key\n");
 cleanup_and_exit:
 	if (k) BN_free(k);	
 	BN_free(tmp1);
