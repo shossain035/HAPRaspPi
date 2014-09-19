@@ -365,6 +365,11 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 	BN_CTX     * ctx = BN_CTX_new();
 	int          ulen = strlen(username) + 1;
 	SRPVerifier *ver = 0;
+	//logging
+	unsigned char * bytes_v;
+	int len_v;
+	//
+
 	*len_s = 0;
 	*bytes_s = 0;
 
@@ -395,7 +400,8 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 
 	ver->authenticated = 0;
 
-	BN_rand(ver->s, 128, -1, 0);
+	//BN_rand(ver->s, 128, -1, 0);
+	BN_hex2bn(&ver->s, "BEB25379D1A8581EB5A727673A2441EE");
 
 	x = calculate_x(alg, ver->s, username, password, len_password);
 
@@ -403,6 +409,22 @@ SRPVerifier * srp_create_salted_verifier(SRP_HashAlgorithm alg,
 		goto cleanup_and_exit;
 
 	BN_mod_exp(ver->v, ver->ng->g, x, ver->ng->N, ctx);
+
+	//logging begin
+	len_v = BN_num_bytes(ver->v);
+	bytes_v = (unsigned char *)malloc(len_v);
+	BN_bn2bin(ver->v, (unsigned char *)bytes_v);
+
+	printf("len_v: %d\n", len_v);
+
+	for (int i = 0; i < len_v; i++) {
+		printf("%02hhx ", bytes_v[i]);
+	}
+
+	printf("\n");
+
+	free(bytes_v);
+	//logging end
 
 	*len_s = BN_num_bytes(ver->s);
 	*bytes_s = (const unsigned char *)malloc(*len_s);
@@ -433,6 +455,11 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 	BIGNUM             *tmp3 = BN_new();
 	BN_CTX             *ctx = BN_CTX_new();
 
+	//debugging
+	int len;
+	unsigned char * bytes_g;
+	//debugging
+
 	*len_B = 0;
 	*bytes_B = 0;
 	ver->b = BN_new();
@@ -443,10 +470,22 @@ void  srp_generate_public_key(SRPVerifier * ver, const unsigned char ** bytes_B,
 		goto cleanup_and_exit;		
 	}		
 
-	BN_rand(ver->b, 512, -1, 0);
-	k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
+	//BN_rand(ver->b, 512, -1, 0);
+	BN_hex2bn(&ver->b, "E487CB59D31AC550471E81F00F6928E01DDA08E974A004F49E61F5D105284D20");
+	//k = H_nn(ver->hash_alg, ver->ng->N, ver->ng->g);
+	len = BN_num_bytes(ver->ng->N);
+	bytes_g = (unsigned char *)malloc(len);
 
-	/* B = ( kv + g^b ) mod N */
+	for (int i = 0; i < len; i++) {
+		bytes_g[i] = 0;
+	}
+
+	bytes_g[len-1] = 5;
+
+	k = H_ns(ver->hash_alg, ver->ng->N, bytes_g, len);
+
+	free(bytes_g);
+	/* B = ( kv + g^b mod N ) mod N */
 	BN_mul(tmp1, k, ver->v, ctx);
 	BN_mod_exp(tmp2, ver->ng->g, ver->b, ver->ng->N, ctx);
 	BN_add(tmp3, tmp1, tmp2);
