@@ -92,10 +92,10 @@ public:
 
 	const char          * username;
 	const unsigned char * bytes_B;
-	const unsigned char * bytes_v;
+	BIGNUM              * v;
 	BIGNUM              * b;
-	int                   len_B;
-	int                   len_v;
+	BIGNUM              * s;
+	int                   len_B;	
 	int                   authenticated;
 
 	unsigned char M[SHA512_DIGEST_LENGTH];
