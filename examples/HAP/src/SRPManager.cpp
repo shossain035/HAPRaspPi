@@ -49,6 +49,15 @@ SRPResult SRPManager::getHostProof(
 }
 
 SRPResult SRPManager::getSharedSecretKey(byte_string & sharedSecretKey) {
+	int keyLength = 0;
+	const unsigned char * sharedSecretKeyString = srp_verifier_get_session_key(_verifier.get(), &keyLength);
+	
+	if (!keyLength) {
+		printf("invalid session key\n");
+		return errorOccured();
+	}
+
+	sharedSecretKey.assign(sharedSecretKeyString, sharedSecretKeyString + keyLength);
 	return SRPResult::SRP_SUCCSESS;
 }
 
