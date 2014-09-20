@@ -16,13 +16,14 @@ namespace HAPAuthentication
 		TLVTypeProof = 0x04,
 		TLVTypeEncryptedData = 0x05,
 		TLVTypeState = 0x06,
-		TLVTypeAuthTag = 0x06,
-		TLVTypeStatus = 0x08,
-		TLVTypeRetryDelay = 0x09,
-		TLVTypeCertificate = 0x0A,
-		TLVTypeMFiProof = 0x0B,
-		TLVTypeAdmin = 0x0C,
-		TLVTypeSeparator = 0x0D
+		TLVTypeError = 0x07,
+		TLVTypeRetryDelay = 0x08,
+		TLVTypeCertificate = 0x09,
+		TLVTypeSignature = 0x0A,
+		TLVTypePermessions = 0x0B,
+		TLVTypeFragmentedData = 0x0C,
+		TLVTypeFragmentedList = 0x0D,
+		TLVTypeSeparator = 0xFF
 	};
 
 	enum PairingState
@@ -62,8 +63,9 @@ private:
 	
 	void sendTLVToClient(HAPClient& client, HAP::HAPStatus status, const TLVList& tlvList);
 	
-	bool prepareEncryptedAccessoryData(const byte_string& sharedEncryptionDecryptionKey,
-				const byte_string& accessoryLongTermPublicKey, TLVList& responseTLVList);
+	bool prepareEncryptedAccessoryData(const byte_string& sessionKey,
+		const byte_string& accessoryLongTermPublicKey, 
+		const byte_string& signature, TLVList& responseTLVList);
 	
 	static const char * _userNameForPairSetup;
 	//todo: read from file

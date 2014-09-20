@@ -9,7 +9,7 @@ using namespace HAPAuthentication;
 
 const char* HAPAuthenticationHandler::_userNameForPairSetup = "Pair-Setup";
 //todo: read these from file
-const char* HAPAuthenticationHandler::_password = "143-17-632";
+const char* HAPAuthenticationHandler::_password = "123-45-777";
 byte_string HAPAuthenticationHandler::_accessoryUsername;
 
 HAPAuthenticationHandler::HAPAuthenticationHandler()
@@ -118,46 +118,52 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 		}
 		case M5:
 		{
-			TLV_ref controllerEncryptedLongTermPublicKey 
+			TLV_ref controllerEncryptedData 
 				= getTLVForType(TLVTypeEncryptedData, requestTLVList);
-			TLV_ref controllerAuthTag = getTLVForType(TLVTypeAuthTag, requestTLVList);
-
-			if (controllerEncryptedLongTermPublicKey == NULL 
-				|| controllerAuthTag == NULL) {
+			if (NULL == controllerEncryptedData) {
 				return HAP::BAD_REQUEST;
 			}
 
-			byte_string srpSessionSecretKey;
+			byte_string srpSharedSecret;
 
-			if (SRPResult::SRP_SUCCSESS != srpManager.getSharedSecretKey(srpSessionSecretKey)) {
+			if (SRPResult::SRP_SUCCSESS != srpManager.getSharedSecretKey(srpSharedSecret)) {
 				printf("failed to get SRP shared secret\n");
 				return HAP::INTERNAL_ERROR;
 			}
 
-			//get the encryptionKey
-			byte_string sharedEncryptionDecryptionKey;
+			//get the sessionKey
+			byte_string sessionKey;
 			if (!HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
-				srpSessionSecretKey, sharedEncryptionDecryptionKey)) {
+				srpSharedSecret, sessionKey)) {
 				printf("failed to create encryptionKey\n");
 				return HAP::INTERNAL_ERROR;
 			}
 
-			//decryptController LTPK
-			byte_string controllerDecryptedLongTermPublicKey;
-			if (!HAPAuthenticationUtility::decryptControllerLTPK(
-					sharedEncryptionDecryptionKey,
-					controllerEncryptedLongTermPublicKey->getValue(),
-					controllerAuthTag->getValue(), 
-					controllerDecryptedLongTermPublicKey)) {
+			//decryptController data
+			byte_string controllerDecryptedData;
+			if (!HAPAuthenticationUtility::decryptControllerData(
+					sessionKey,
+					controllerEncryptedData->getValue(),
+					controllerDecryptedData)) {
 				printf("failed to decrypt controller key\n");
-				return HAP::BAD_REQUEST;
+				//return HAP::BAD_REQUEST;
 				//todo: create auth error tlv
 			}
+
+			printString(controllerDecryptedData, "controllerDecrypted");
+			
 			//generate accessory's long term keys
 			byte_string accessoryLongTermPublicKey, accessoryLongTermSecretKey;
 			HAPAuthenticationUtility::generateKeyPairUsingEd25519(
 				accessoryLongTermPublicKey, accessoryLongTermSecretKey);
 			
+			//sign accessory info
+			byte_string signature;
+			HAPAuthenticationUtility::signAccessoryInfo(srpSharedSecret, _accessoryUsername, 
+				accessoryLongTermPublicKey, accessoryLongTermSecretKey, signature);
+
+
+			/*
 			byte_string controllerUsername;
 			//controllerUsername.assign(_srpSessionRef->username->data, 
 			//	_srpSessionRef->username->data + _srpSessionRef->username->length);
@@ -169,14 +175,13 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			if (!pairing.savePairing()) {
 				return HAP::INTERNAL_ERROR;
 			}
+			*/
 			
-			//prepare response
 			if (!prepareEncryptedAccessoryData(
-				sharedEncryptionDecryptionKey, accessoryLongTermPublicKey, responseTLVList)) {
+				sessionKey, accessoryLongTermPublicKey, signature, responseTLVList)) {
 
 				return HAP::BAD_REQUEST;
 			}
-			
 
 			srpManager.endSession();
 			break;
@@ -344,7 +349,7 @@ HAPAuthenticationHandler::parseRequestBody(const HAPClient& client, TLVList& tlv
 	int messageLength = client.getMessageLength();
 
 	byte_string bytes(message, message + messageLength);
-	printString(bytes, "request");
+	//printString(bytes, "request");
 
 	try {
 		byte_string::iterator begin = bytes.begin();
@@ -400,28 +405,29 @@ HAPAuthenticationHandler::createTLVForState(PairingState state)
 
 bool
 HAPAuthenticationHandler::prepareEncryptedAccessoryData(
-	const byte_string& sharedEncryptionDecryptionKey, 
-	const byte_string& accessoryLongTermPublicKey, 
-	TLVList& responseTLVList)
+	const byte_string& sessionKey,
+	const byte_string& accessoryLongTermPublicKey,
+	const byte_string& signature, TLVList& responseTLVList)
 {
 	//create sub tlv
 	TLVList subTLVList;
 	subTLVList.push_back(TLV_ref(new TLV(TLVTypeIdentifier, _accessoryUsername)));
 	computeTLVsFromString(TLVTypePublicKey, accessoryLongTermPublicKey, subTLVList);
-	
+	subTLVList.push_back(TLV_ref(new TLV(TLVTypeSignature, signature)));
+
+
 	byte_string subTLVdata;
 	for (TLV_ref tlv : subTLVList) {
 		tlv->encode(subTLVdata);
 	}
 
 	//encrypt
-	byte_string encryptedData, authTag;
-	if (!HAPAuthenticationUtility::encryptAccessoryLTPK(
-		sharedEncryptionDecryptionKey, subTLVdata, authTag, encryptedData)) {
+	byte_string encryptedData;
+	if (!HAPAuthenticationUtility::encryptAccessoryData(
+		sessionKey, subTLVdata, encryptedData)) {
 		return false;
 	}
 	
-	responseTLVList.push_back(TLV_ref(new TLV(TLVTypeAuthTag, authTag)));	
 	computeTLVsFromString(TLVTypeEncryptedData, encryptedData, responseTLVList);
 	responseTLVList.push_back(createTLVForState(M6));
 

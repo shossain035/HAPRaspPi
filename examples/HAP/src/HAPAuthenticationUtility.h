@@ -44,12 +44,17 @@ public:
 	static bool computeEncryptionKeyFromSRPSharedSecret(
 		const byte_string& sharedSecretKey, byte_string& encryptionKey);
 
-	static bool decryptControllerLTPK(
+	static bool decryptControllerData(
 		const byte_string& sharedEncryptionDecryptionKey,
-		const byte_string& encryptedKey, const byte_string& authTag, byte_string& decryptedKey);
-	static bool encryptAccessoryLTPK(
-		const byte_string& sharedEncryptionDecryptionKey,
-		const byte_string& plaintTextKey, byte_string& authTag, byte_string& encryptedKey);
+		const byte_string& encryptedData, byte_string& decryptedData);
+	static bool encryptAccessoryData(
+		const byte_string& sessionKey,
+		const byte_string& plainText, byte_string& cipherText);
+	static bool signAccessoryInfo(
+		const byte_string& sharedSecretKey, const byte_string& accessoryIdentifier,
+		const byte_string& accessoryLongTermPublicKey, const byte_string& accessoryLongTermSecretKey,
+		byte_string& signature);
+
 	static bool encryptHAPResponse(
 		const uint8_t* encryptionKey, const uint8_t* nonce,
 		const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse);

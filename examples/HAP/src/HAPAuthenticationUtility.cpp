@@ -12,24 +12,38 @@ bool
 HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
 	const byte_string& sharedSecretKey, byte_string& encryptionKey)
 {
-	return deriveKeyUsingHKDF(sharedSecretKey, "Pair-Setup-Salt", "Pair-Setup-Encryption-Key", encryptionKey);
+	return deriveKeyUsingHKDF(sharedSecretKey, "Pair-Setup-Encrypt-Salt", "Pair-Setup-Encrypt-Info", encryptionKey);
 }
 
 bool 
-HAPAuthenticationUtility::decryptControllerLTPK(
+HAPAuthenticationUtility::decryptControllerData(
 	const byte_string& sharedEncryptionDecryptionKey,
-	const byte_string& encryptedKey, const byte_string& authTag, byte_string& decryptedKey)
+	const byte_string& encryptedData, byte_string& decryptedData)
 {
+	if (encryptedData.size() < CHACHA_POLY1305_DIGEST_SIZE) {
+		printf("auth tag missing\n");
+		return false;
+	}
+
 	chacha_poly1305_ctx ctx;
-	
+
+	//extracting the auth tag
+	byte_string authTag(encryptedData.end() - CHACHA_POLY1305_DIGEST_SIZE, encryptedData.end());
+	//int encryptedDataLength = encryptedData.size() - CHACHA_POLY1305_DIGEST_SIZE;
+	int encryptedDataLength = encryptedData.size();
+
+
 	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
 	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg05");
 	
-	decryptedKey.resize(encryptedKey.size());
-	chacha_poly1305_decrypt(&ctx, encryptedKey.size(), decryptedKey.data(), encryptedKey.data());
+	decryptedData.resize(encryptedDataLength);
+	chacha_poly1305_decrypt(&ctx, encryptedDataLength, decryptedData.data(), encryptedData.data());
 		
 	byte_string authTagComputed;
 	computeChaChaPolyAuthTag(ctx, authTagComputed);
+
+	printString(authTag, "authTag");
+	printString(authTagComputed, "authTagComputed");
 	
 	if (authTagComputed != authTag) {
 		printf("auth tag mismatch\n");
@@ -40,22 +54,50 @@ HAPAuthenticationUtility::decryptControllerLTPK(
 }
 
 bool
-HAPAuthenticationUtility::encryptAccessoryLTPK(
-	const byte_string& sharedEncryptionDecryptionKey,
-	const byte_string& plainTextKey, byte_string& authTag, byte_string& encryptedKey)
+HAPAuthenticationUtility::encryptAccessoryData(
+	const byte_string& sessionKey,
+	const byte_string& plainText, byte_string& cipherText)
 {
 	chacha_poly1305_ctx ctx;
 
-	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
+	chacha_poly1305_set_key(&ctx, sessionKey.data());
 	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
 	
-	encryptedKey.resize(plainTextKey.size());
-	chacha_poly1305_encrypt(&ctx, plainTextKey.size(), encryptedKey.data(), plainTextKey.data());
+	cipherText.resize(plainText.size());
+	chacha_poly1305_encrypt(&ctx, plainText.size(), cipherText.data(), plainText.data());
 
+	byte_string authTag;
 	computeChaChaPolyAuthTag(ctx, authTag);
+
+	cipherText += authTag;
 	
 	return true;
 }
+
+bool
+HAPAuthenticationUtility::signAccessoryInfo(
+	const byte_string& sharedSecretKey, const byte_string& accessoryIdentifier,
+	const byte_string& accessoryLongTermPublicKey, const byte_string& accessoryLongTermSecretKey,
+	byte_string& signature)
+{
+	byte_string message;
+
+	deriveKeyUsingHKDF(sharedSecretKey, "Pair-Setup-Accessory-Sign-Salt", 
+		"Pair-Setup-Accessory-Sign-Info", message);
+
+	message += accessoryIdentifier;
+	message += accessoryLongTermPublicKey;
+
+	byte_string signature;
+	signature.resize(sizeof(ed25519_signature));
+	 
+	//sign with Ed25119
+	ed25519_sign(message.data(), message.size(),
+		accessoryLongTermSecretKey.data(), accessoryLongTermPublicKey.data(), signature.data());
+	return true;
+}
+
+
 
 //todo combine all the chacha poly encrypt
 bool
