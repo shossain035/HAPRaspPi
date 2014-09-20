@@ -88,7 +88,6 @@ HAPAuthenticationUtility::signAccessoryInfo(
 	message += accessoryIdentifier;
 	message += accessoryLongTermPublicKey;
 
-	byte_string signature;
 	signature.resize(sizeof(ed25519_signature));
 	 
 	//sign with Ed25119
