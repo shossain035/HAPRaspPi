@@ -72,6 +72,23 @@ HAPAuthenticationUtility::encryptAccessoryData(
 }
 
 bool
+HAPAuthenticationUtility::verifyControllerSignature(
+	const byte_string& srpSharedSecret, const byte_string& controllerIdentifier,
+	const byte_string& controllerLongTermPublicKey, const byte_string& controllerSignature)
+{
+	byte_string message;
+
+	deriveKeyUsingHKDF(srpSharedSecret, "Pair-Setup-Controller-Sign-Salt",
+		"Pair-Setup-Controller-Sign-Info", message);
+
+	message += controllerIdentifier;
+	message += controllerLongTermPublicKey;
+
+	return ed25519_sign_open(message.data(), message.size(),
+		controllerLongTermPublicKey.data(), controllerSignature.data()) == 0;
+}
+
+bool
 HAPAuthenticationUtility::signAccessoryInfo(
 	const byte_string& sharedSecretKey, const byte_string& accessoryIdentifier,
 	const byte_string& accessoryLongTermPublicKey, const byte_string& accessoryLongTermSecretKey,

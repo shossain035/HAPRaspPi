@@ -155,7 +155,36 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				//todo: create auth error tlv
 			}
 
-			printString(controllerDecryptedData, "controllerDecrypted");
+			//printString(controllerDecryptedData, "controllerDecrypted");
+
+			TLVList decryptedTlvList;
+			try {	
+				byte_string::iterator begin = controllerDecryptedData.begin();
+				TLV::parseSequence(begin, controllerDecryptedData.end(), decryptedTlvList);
+			} catch (const std::runtime_error& error) {
+				printf("could not parse decrypted TLV\n", error.what());
+				return HAP::BAD_REQUEST;
+			}
+
+			TLV_ref controllerIdentifier = getTLVForType(TLVTypeIdentifier, decryptedTlvList);
+			TLV_ref controllerLongTermPublicKey = getTLVForType(TLVTypePublicKey, decryptedTlvList);
+			TLV_ref controllerSignature = getTLVForType(TLVTypeSignature, decryptedTlvList);
+
+			if (NULL == controllerIdentifier 
+				|| NULL == controllerLongTermPublicKey 
+				|| NULL == controllerSignature) {
+
+				printf("missing decrypted tlvs\n");
+				return HAP::BAD_REQUEST;
+			}
+
+			if (!HAPAuthenticationUtility::verifyControllerSignature(
+				srpSharedSecret, controllerIdentifier->getValue(),
+				controllerLongTermPublicKey->getValue(), controllerSignature->getValue())) {
+			
+				printf("signature mismatch\n");
+				return HAP::BAD_REQUEST;
+			}
 			
 			//generate accessory's long term keys
 			byte_string accessoryLongTermPublicKey, accessoryLongTermSecretKey;
@@ -178,12 +207,12 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 
 
 			//sign accessory info
-			byte_string signature;
+			byte_string accessorySignature;
 			HAPAuthenticationUtility::signAccessoryInfo(srpSharedSecret, _accessoryUsername,
-				accessoryLongTermPublicKey, accessoryLongTermSecretKey, signature);
+				accessoryLongTermPublicKey, accessoryLongTermSecretKey, accessorySignature);
 
 			if (!prepareEncryptedAccessoryData(
-				sessionKey, accessoryLongTermPublicKey, signature, responseTLVList)) {
+				sessionKey, accessoryLongTermPublicKey, accessorySignature, responseTLVList)) {
 
 				return HAP::BAD_REQUEST;
 			}
