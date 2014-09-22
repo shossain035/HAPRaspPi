@@ -1,9 +1,9 @@
 #include "HAPAuthenticationUtility.h"
 #include <openssl/hmac.h>
-#include <nettle/chacha-poly1305.h>
 #include <nettle/knuth-lfib.h>
 #include "Curve25519Donna.h"
 #include "ed25519.h"
+#include "ChaChaPoly.h" 
 
 #define CURVE25519_KEY_SIZE                 32
 const char* HAPPairing::_pairingStorePath = "./keys/";
@@ -17,33 +17,30 @@ HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
 
 bool 
 HAPAuthenticationUtility::decryptControllerData(
-	const byte_string& sharedEncryptionDecryptionKey,
-	const byte_string& encryptedData, byte_string& decryptedData)
+	const byte_string& sessionKey,
+	const byte_string& encryptedDataAndTag, byte_string& decryptedData)
 {
-	if (encryptedData.size() < CHACHA_POLY1305_DIGEST_SIZE) {
+	if (encryptedDataAndTag.size() < CHACHA_POLY1305_DIGEST_SIZE) {
 		printf("auth tag missing\n");
 		return false;
 	}
+	//todo: verify nonce and session key length
 
-	chacha_poly1305_ctx ctx;
+	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) "PS-Msg05");
 
 	//extracting the auth tag
-	byte_string authTag(encryptedData.end() - CHACHA_POLY1305_DIGEST_SIZE, encryptedData.end());
-	//int encryptedDataLength = encryptedData.size() - CHACHA_POLY1305_DIGEST_SIZE;
-	int encryptedDataLength = encryptedData.size();
-
-
-	chacha_poly1305_set_key(&ctx, sharedEncryptionDecryptionKey.data());
-	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg05");
+	byte_string authTag(encryptedDataAndTag.end() - CHACHA_POLY1305_DIGEST_SIZE, encryptedDataAndTag.end());
+	int encryptedDataLength = encryptedDataAndTag.size() - CHACHA_POLY1305_DIGEST_SIZE;
 	
 	decryptedData.resize(encryptedDataLength);
-	chacha_poly1305_decrypt(&ctx, encryptedDataLength, decryptedData.data(), encryptedData.data());
+	ctx.update(encryptedDataAndTag.data(), encryptedDataLength, decryptedData.data());
 		
 	byte_string authTagComputed;
-	computeChaChaPolyAuthTag(ctx, authTagComputed);
+	authTagComputed.resize(CHACHA_POLY1305_DIGEST_SIZE);
+	ctx.digest(authTagComputed.data());
 
 	printString(authTag, "authTag");
-	printString(authTagComputed, "authTagComputed");
+	printString(authTagComputed, "authTag Computed");
 	
 	if (authTagComputed != authTag) {
 		printf("auth tag mismatch\n");
@@ -56,20 +53,20 @@ HAPAuthenticationUtility::decryptControllerData(
 bool
 HAPAuthenticationUtility::encryptAccessoryData(
 	const byte_string& sessionKey,
-	const byte_string& plainText, byte_string& cipherText)
+	const byte_string& plainText, byte_string& encryptedDataAndTag)
 {
-	chacha_poly1305_ctx ctx;
+	//todo: verify nonce and session key length
 
-	chacha_poly1305_set_key(&ctx, sessionKey.data());
-	chacha_poly1305_set_nonce(&ctx, (uint8_t *) "PS-Msg06");
+	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) "PS-Msg06");
 	
-	cipherText.resize(plainText.size());
-	chacha_poly1305_encrypt(&ctx, plainText.size(), cipherText.data(), plainText.data());
+	encryptedDataAndTag.resize(plainText.size());
+	ctx.update(plainText.data(), plainText.size(), encryptedDataAndTag.data());
 
 	byte_string authTag;
-	computeChaChaPolyAuthTag(ctx, authTag);
+	authTag.resize(CHACHA_POLY1305_DIGEST_SIZE);
+	ctx.digest(authTag.data());
 
-	cipherText += authTag;
+	encryptedDataAndTag += authTag;
 	
 	return true;
 }
@@ -105,7 +102,7 @@ HAPAuthenticationUtility::encryptHAPResponse(
 	const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse)
 {
 	
-	union {
+	/*union {
 		int aadValue;
 		uint8_t aad[4];
 	};
@@ -121,7 +118,7 @@ HAPAuthenticationUtility::encryptHAPResponse(
 	chacha_poly1305_encrypt(&ctx, plaintTextResponse.size(), encryptedResponse.data(), plaintTextResponse.data());
 
 	computeChaChaPolyAuthTag(ctx, authTag);
-	
+	*/
 	return true;
 }
 
@@ -262,13 +259,6 @@ HAPAuthenticationUtility::deriveKeyUsingHKDF(
 	}
 
 	return true;
-}
-
-void
-HAPAuthenticationUtility::computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag)
-{
-	authTag.resize(CHACHA_POLY1305_DIGEST_SIZE);
-	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTag.data());
 }
 
 

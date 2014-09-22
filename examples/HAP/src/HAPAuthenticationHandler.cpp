@@ -16,12 +16,17 @@ HAPAuthenticationHandler::HAPAuthenticationHandler()
 {
 	char accessoryUsername[] = "4e:06:19:0e:c0:87";
 	_accessoryUsername.assign(accessoryUsername, accessoryUsername + strlen(accessoryUsername));	
+
 	/*
 	byte_string accessorySRPPublicKey, salt;
 	srpManager.getHostPublicKeyAndSalt("alice", "password123", accessorySRPPublicKey, salt);
 
 	printString(salt, "salt");
 	printString(accessorySRPPublicKey, "B");
+
+	byte_string sharedSecret;
+	srpManager.getSharedSecretKey(sharedSecret);
+	printString(sharedSecret, "shared");
 	*/
 }
 
@@ -146,7 +151,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 					controllerEncryptedData->getValue(),
 					controllerDecryptedData)) {
 				printf("failed to decrypt controller key\n");
-				//return HAP::BAD_REQUEST;
+				return HAP::BAD_REQUEST;
 				//todo: create auth error tlv
 			}
 
@@ -156,13 +161,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			byte_string accessoryLongTermPublicKey, accessoryLongTermSecretKey;
 			HAPAuthenticationUtility::generateKeyPairUsingEd25519(
 				accessoryLongTermPublicKey, accessoryLongTermSecretKey);
-			
-			//sign accessory info
-			byte_string signature;
-			HAPAuthenticationUtility::signAccessoryInfo(srpSharedSecret, _accessoryUsername, 
-				accessoryLongTermPublicKey, accessoryLongTermSecretKey, signature);
-
-
+						
 			/*
 			byte_string controllerUsername;
 			//controllerUsername.assign(_srpSessionRef->username->data, 
@@ -176,7 +175,13 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 				return HAP::INTERNAL_ERROR;
 			}
 			*/
-			
+
+
+			//sign accessory info
+			byte_string signature;
+			HAPAuthenticationUtility::signAccessoryInfo(srpSharedSecret, _accessoryUsername,
+				accessoryLongTermPublicKey, accessoryLongTermSecretKey, signature);
+
 			if (!prepareEncryptedAccessoryData(
 				sessionKey, accessoryLongTermPublicKey, signature, responseTLVList)) {
 

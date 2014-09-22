@@ -45,11 +45,11 @@ public:
 		const byte_string& sharedSecretKey, byte_string& encryptionKey);
 
 	static bool decryptControllerData(
-		const byte_string& sharedEncryptionDecryptionKey,
-		const byte_string& encryptedData, byte_string& decryptedData);
+		const byte_string& sessionKey,
+		const byte_string& encryptedDataAndTag, byte_string& decryptedData);
 	static bool encryptAccessoryData(
 		const byte_string& sessionKey,
-		const byte_string& plainText, byte_string& cipherText);
+		const byte_string& plainText, byte_string& encryptedDataAndTag);
 	static bool signAccessoryInfo(
 		const byte_string& sharedSecretKey, const byte_string& accessoryIdentifier,
 		const byte_string& accessoryLongTermPublicKey, const byte_string& accessoryLongTermSecretKey,
@@ -89,8 +89,7 @@ public:
 private: 	
 	static bool deriveKeyUsingHKDF(
 		const byte_string& inputKey, const char* salt, const char* info, byte_string& derivedKey);
-	static void computeChaChaPolyAuthTag(chacha_poly1305_ctx& ctx, byte_string& authTag);
-
+	
 	static bool chacha20Crypt(const byte_string& sharedSecret, const char* nonce,
 		int length, const uint8_t* source, byte_string& destination);
 };
