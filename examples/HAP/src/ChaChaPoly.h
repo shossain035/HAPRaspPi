@@ -10,7 +10,8 @@
 class ChaChaPoly {
 public:
 	ChaChaPoly(const uint8_t key[CHACHA_KEY_SIZE], const uint8_t nonce[CHACHA_NONCE_SIZE]);
-	void update(const uint8_t * source, uint64_t length, uint8_t * destination);
+	void encrypt(const uint8_t * source, uint64_t length, uint8_t * destination);
+	void decrypt(const uint8_t * source, uint64_t length, uint8_t * destination);
 	void digest(uint8_t authTag[CHACHA_POLY1305_DIGEST_SIZE]);
 private:
 	uint64_t _authDataLength;

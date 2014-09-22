@@ -33,20 +33,17 @@ HAPAuthenticationUtility::decryptControllerData(
 	int encryptedDataLength = encryptedDataAndTag.size() - CHACHA_POLY1305_DIGEST_SIZE;
 	
 	decryptedData.resize(encryptedDataLength);
-	ctx.update(encryptedDataAndTag.data(), encryptedDataLength, decryptedData.data());
+	ctx.decrypt(encryptedDataAndTag.data(), encryptedDataLength, decryptedData.data());
 		
 	byte_string authTagComputed;
 	authTagComputed.resize(CHACHA_POLY1305_DIGEST_SIZE);
 	ctx.digest(authTagComputed.data());
 
-	printString(authTag, "authTag");
-	printString(authTagComputed, "authTag Computed");
-	
 	if (authTagComputed != authTag) {
 		printf("auth tag mismatch\n");
 		return false;
 	}
-	
+		
 	return true;
 }
 
@@ -60,7 +57,7 @@ HAPAuthenticationUtility::encryptAccessoryData(
 	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) "PS-Msg06");
 	
 	encryptedDataAndTag.resize(plainText.size());
-	ctx.update(plainText.data(), plainText.size(), encryptedDataAndTag.data());
+	ctx.encrypt(plainText.data(), plainText.size(), encryptedDataAndTag.data());
 
 	byte_string authTag;
 	authTag.resize(CHACHA_POLY1305_DIGEST_SIZE);

@@ -1,5 +1,4 @@
 #include "ChaChaPoly.h"
-#include <stdio.h>
 
 #define CHACHA_POLY_BLOCK_SIZE          16 
 
@@ -20,7 +19,15 @@ ChaChaPoly::ChaChaPoly(const uint8_t key[CHACHA_KEY_SIZE], const uint8_t nonce[C
 	_dataLength = _authDataLength = 0;
 }
 
-void ChaChaPoly::update(const uint8_t * source, uint64_t length, uint8_t * destination)
+void ChaChaPoly::encrypt(const uint8_t * source, uint64_t length, uint8_t * destination)
+{
+	_dataLength += length;	
+	chacha_crypt(&_chacha, length, destination, source);
+	poly1305_update(&_poly, destination, length);
+}
+
+
+void ChaChaPoly::decrypt(const uint8_t * source, uint64_t length, uint8_t * destination)
 {
 	_dataLength += length;
 	poly1305_update(&_poly, source, length);
@@ -30,9 +37,7 @@ void ChaChaPoly::update(const uint8_t * source, uint64_t length, uint8_t * desti
 void ChaChaPoly::digest(uint8_t authTag[CHACHA_POLY1305_DIGEST_SIZE])
 {
 	int dataRemainder = _dataLength % CHACHA_POLY_BLOCK_SIZE;	
-	printf("dataRemainder: %d, _dataLength: %llu _authDataLength: %llu\n", 
-		dataRemainder, _dataLength, _authDataLength);
-
+	
 	if (dataRemainder) {
 		uint8_t zeros[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 	
@@ -49,12 +54,6 @@ void ChaChaPoly::digest(uint8_t authTag[CHACHA_POLY1305_DIGEST_SIZE])
 
 	l.length = _dataLength;
 	poly1305_update(&_poly, l.lengthBuffer, 8);
-
-	printf("[");
-	for (int i = 0; i < 8; i++) {
-		printf(" %2hhx", l.lengthBuffer[i]);
-	}
-	printf("]\n");
-
+	
 	poly1305_finish(&_poly, authTag);
 }
