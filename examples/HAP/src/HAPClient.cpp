@@ -118,30 +118,30 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 	println();
 }
 
-void HAPClient::getPairVerifyInfo(byte_string& sharedSecretForSession,
-		byte_string& controllerLongTermPublicKey, byte_string& stationToStationXY)
+void HAPClient::getPairVerifyInfo(byte_string& pairVerifySharedSecret,
+	byte_string& controllerPublicKey, byte_string& accessoryPublicKey)
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
 	
-	sharedSecretForSession.assign(request_info->sharedSecretForSession,
-		request_info->sharedSecretForSession + SESSION_SECURITY_KEY_LENGTH);
-	controllerLongTermPublicKey.assign(request_info->controllerLongTermPublicKey,
-		request_info->controllerLongTermPublicKey + SESSION_SECURITY_KEY_LENGTH);
-	stationToStationXY.assign(request_info->stationToStationXY,
-		request_info->stationToStationXY + STATION_TO_STATION_XY_LENGTH);
+	pairVerifySharedSecret.assign(request_info->pairVerifySharedSecret,
+		request_info->pairVerifySharedSecret + SESSION_SECURITY_KEY_LENGTH);
+	controllerPublicKey.assign(request_info->controllerPublicKey,
+		request_info->controllerPublicKey + SESSION_SECURITY_KEY_LENGTH);
+	accessoryPublicKey.assign(request_info->accessoryPublicKey,
+		request_info->accessoryPublicKey + SESSION_SECURITY_KEY_LENGTH);
 }
 
-void HAPClient::setPairVerifyInfo(const byte_string& sharedSecretForSession,
-	const byte_string& controllerLongTermPublicKey, const byte_string& stationToStationXY)
+void HAPClient::setPairVerifyInfo(const byte_string& pairVerifySharedSecret,
+	const byte_string& controllerPublicKey, const byte_string& accessoryPublicKey)
 {
 	mg_request_info *request_info = mg_get_request_info(_conn);
 
-	memcpy(request_info->sharedSecretForSession, sharedSecretForSession.data(),
+	memcpy(request_info->pairVerifySharedSecret, pairVerifySharedSecret.data(),
 		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->controllerLongTermPublicKey, controllerLongTermPublicKey.data(),
+	memcpy(request_info->controllerPublicKey, controllerPublicKey.data(),
 		SESSION_SECURITY_KEY_LENGTH);
-	memcpy(request_info->stationToStationXY, stationToStationXY.data(),
-		STATION_TO_STATION_XY_LENGTH);
+	memcpy(request_info->accessoryPublicKey, accessoryPublicKey.data(),
+		SESSION_SECURITY_KEY_LENGTH);
 }
 
 void HAPClient::setSessionKeys(

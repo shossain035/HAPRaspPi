@@ -17,7 +17,7 @@ HAPAuthenticationUtility::computeEncryptionKeyFromSRPSharedSecret(
 
 bool 
 HAPAuthenticationUtility::decryptControllerData(
-	const byte_string& sessionKey,
+	const byte_string& sessionKey, const char * nonce,
 	const byte_string& encryptedDataAndTag, byte_string& decryptedData)
 {
 	if (encryptedDataAndTag.size() < CHACHA_POLY1305_DIGEST_SIZE) {
@@ -26,7 +26,7 @@ HAPAuthenticationUtility::decryptControllerData(
 	}
 	//todo: verify nonce and session key length
 
-	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) "PS-Msg05");
+	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) nonce);
 
 	//extracting the auth tag
 	byte_string authTag(encryptedDataAndTag.end() - CHACHA_POLY1305_DIGEST_SIZE, encryptedDataAndTag.end());
@@ -49,8 +49,7 @@ HAPAuthenticationUtility::decryptControllerData(
 
 bool
 HAPAuthenticationUtility::encryptAccessoryData(
-	const byte_string& sessionKey,
-	const char * nonce,
+	const byte_string& sessionKey, const char * nonce,
 	const byte_string& plainText, byte_string& encryptedDataAndTag)
 {
 	//todo: verify nonce and session key length
@@ -158,15 +157,20 @@ HAPAuthenticationUtility::generateKeyPairUsingCurve25519(byte_string& publicKey,
 bool 
 HAPAuthenticationUtility::generateSharedSecretUsingCurve25519(
 		const byte_string& controllerPublicKey,
-		const byte_string& accessorySecretKey,
-		byte_string& sharedSecret,
-		byte_string& sessionKey)
+		const byte_string& accessorySecretKey,		
+		byte_string& sharedSecret)
 {
 	sharedSecret.resize(CURVE25519_KEY_SIZE);
 	curve25519_donna(sharedSecret.data(), accessorySecretKey.data(), controllerPublicKey.data());
-	
-	deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Encrypt-Salt", "Pair-Verify-Encrypt-Info", sessionKey);
+	return true;
+}
 
+bool
+HAPAuthenticationUtility::generatePairVarifySessionKey(
+	const byte_string& sharedSecret,	
+	byte_string& sessionKey)
+{
+	deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Encrypt-Salt", "Pair-Verify-Encrypt-Info", sessionKey);
 	return true;
 }
 
@@ -210,8 +214,8 @@ bool
 HAPAuthenticationUtility::generateSessionKeys(const byte_string& sharedSecretForSession,
 		byte_string& accessoryToControllerKey, byte_string& controllerToAccessoryKey)
 {
-	return deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Read-Info", accessoryToControllerKey)
-		&& deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Write-Info", controllerToAccessoryKey);
+	return deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Read-Encryption-Key", accessoryToControllerKey)
+		&& deriveKeyUsingHKDF(sharedSecretForSession, "Control-Salt", "Control-Write-Encryption-Key", controllerToAccessoryKey);
 }
 
 bool 

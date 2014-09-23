@@ -37,7 +37,7 @@ public:
 		const byte_string& sharedSecretKey, byte_string& encryptionKey);
 
 	static bool decryptControllerData(
-		const byte_string& sessionKey,
+		const byte_string& sessionKey, const char * nonce,
 		const byte_string& encryptedDataAndTag, byte_string& decryptedData);
 	static bool encryptAccessoryData(
 		const byte_string& sessionKey, const char * nonce,
@@ -59,8 +59,11 @@ public:
 	static bool generateKeyPairUsingCurve25519(byte_string& publicKey, byte_string& secretKey);
 	static bool generateSharedSecretUsingCurve25519(
 		const byte_string& controllerPublicKey,
-		const byte_string& accessorySecretKey,
-		byte_string& sharedSecret,
+		const byte_string& accessorySecretKey,		
+		byte_string& sharedSecret);
+
+	static bool generatePairVarifySessionKey(
+		const byte_string& sharedSecret,
 		byte_string& sessionKey);
 
 

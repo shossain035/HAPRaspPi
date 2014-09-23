@@ -148,7 +148,7 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			//decryptController data
 			byte_string controllerDecryptedData;
 			if (!HAPAuthenticationUtility::decryptControllerData(
-					sessionKey,
+					sessionKey, "PS-Msg05",
 					controllerEncryptedData->getValue(),
 					controllerDecryptedData)) {
 				printf("failed to decrypt controller key\n");
@@ -290,19 +290,16 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 				//todo: send error
 				return HAP::BAD_REQUEST;
 			}
-
-			//HAPPairing pairing(controllerUsername->getValue());
-			//if (!pairing.retievePairing()) {
-			//	//send UnknownPeerErr
-			//	return HAP::BAD_REQUEST;
-			//}
-			//
+			
 			byte_string accessoryPublicKey, accessorySecretKey, sharedSecret, sessionKey;
 			
 			HAPAuthenticationUtility::generateKeyPairUsingCurve25519(accessoryPublicKey, accessorySecretKey);
 			HAPAuthenticationUtility::
 				generateSharedSecretUsingCurve25519(controllerPublicKey->getValue(), 
-				accessorySecretKey, sharedSecret, sessionKey);
+				accessorySecretKey, sharedSecret);
+			HAPAuthenticationUtility::generatePairVarifySessionKey(sharedSecret, sessionKey);
+
+			client.setPairVerifyInfo(sharedSecret, controllerPublicKey->getValue(), accessoryPublicKey);
 
 			//Station-To-Station message
 			byte_string message, signature, accessoryLongTermPublicKey, accessoryLongTermSecretKey;
@@ -316,15 +313,7 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 			signature.resize(sizeof(ed25519_signature));
 			ed25519_sign(message.data(), message.size(), 
 				accessoryLongTermSecretKey.data(), accessoryLongTermPublicKey.data(), signature.data());
-
-			//client.setPairVerifyInfo(sharedSecret, 
-			//	pairing.controllerLongTermPublicKey(), stationToStationXY);
-							
-			//Station-To-Station YX
-			/*byte_string stationToStationYX;
-			stationToStationYX += accessoryPublicKey;
-			stationToStationYX += controllerPublicKey->getValue();
-*/
+			
 			//create sub tlv
 			TLVList subTLVList;
 			subTLVList.push_back(TLV_ref(new TLV(TLVTypeIdentifier, _accessoryUsername)));
@@ -349,32 +338,57 @@ HAPAuthenticationHandler::processVerifyRequest(HAPClient& client, const TLVList&
 		}
 		case M3:
 		{
-			//TLV_ref controllerProofTLV = getTLVForType(TLVTypeProof, requestTLVList);
-			//if (controllerProofTLV == NULL) {
-			//	return HAP::BAD_REQUEST;
-			//}
+			TLV_ref controllerEncryptedData = getTLVForType(TLVTypeEncryptedData, requestTLVList);
+			if (controllerEncryptedData == NULL) {
+				return HAP::BAD_REQUEST;
+			}
 
-			//byte_string sharedSecretForSession, controllerLongTermPublicKey, stationToStationXY;
-			//	
-			//client.getPairVerifyInfo(sharedSecretForSession,
-			//	controllerLongTermPublicKey, stationToStationXY);
+			byte_string accessoryPublicKey, controllerPublicKey, sharedSecret, sessionKey;
+			client.getPairVerifyInfo(sharedSecret, controllerPublicKey, accessoryPublicKey);
+			HAPAuthenticationUtility::generatePairVarifySessionKey(sharedSecret, sessionKey);
 
-			//if (!HAPAuthenticationUtility::verifyControllerProofForSTSProtocol(
-			//	stationToStationXY, controllerLongTermPublicKey, sharedSecretForSession, controllerProofTLV->getValue())) {
-			//	//send AuthenticationErr
-			//	printf("failed to verify session\n");
-			//	return HAP::BAD_REQUEST;
-			//}
-	
-			//byte_string accessoryToControllerKey, controllerToAccessoryKey;
+			//decryptController data
+			byte_string controllerDecryptedData;
+			if (!HAPAuthenticationUtility::decryptControllerData(
+				sessionKey, "PV-Msg03",
+				controllerEncryptedData->getValue(),
+				controllerDecryptedData)) {
+				printf("failed to decrypt controller key\n");
+				return HAP::BAD_REQUEST;
+				//todo: create auth error tlv
+			}
 
-			//HAPAuthenticationUtility::generateSessionKeys(
-			//	sharedSecretForSession, accessoryToControllerKey, controllerToAccessoryKey);
+			TLVList decryptedTlvList;
+			try {
+				byte_string::iterator begin = controllerDecryptedData.begin();
+				TLV::parseSequence(begin, controllerDecryptedData.end(), decryptedTlvList);
+			}
+			catch (const std::runtime_error& error) {
+				printf("could not parse decrypted TLV\n", error.what());
+				return HAP::BAD_REQUEST;
+			}
 
-			//client.setSessionKeys(accessoryToControllerKey, controllerToAccessoryKey);
+			TLV_ref controllerIdentifier = getTLVForType(TLVTypeIdentifier, decryptedTlvList);
 
-			//////setting state			
-			//responseTLVList.push_back(createTLVForState(M4));
+			HAPPairing pairing(controllerIdentifier->getValue());
+			if (!pairing.retievePairing()) {
+				//send UnknownPeerErr
+				printf("UnknownPeerErr\n");
+				return HAP::BAD_REQUEST;
+			}
+			
+			//todo: verify controller's signature
+
+			byte_string accessoryToControllerKey, controllerToAccessoryKey;
+
+			printf("generating session keys\n");
+			HAPAuthenticationUtility::generateSessionKeys(
+				sharedSecret, accessoryToControllerKey, controllerToAccessoryKey);
+
+			client.setSessionKeys(accessoryToControllerKey, controllerToAccessoryKey);
+
+			////setting state			
+			responseTLVList.push_back(createTLVForState(M4));
 			break;
 		}
 		default:

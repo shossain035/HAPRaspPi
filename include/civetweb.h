@@ -53,10 +53,6 @@ extern "C" {
 #define SESSION_SECURITY_KEY_LENGTH 32 
 #endif
 
-#ifndef STATION_TO_STATION_XY_LENGTH
-#define STATION_TO_STATION_XY_LENGTH 64
-#endif
-
 struct mg_context;     /* Handle for the HTTP service itself */
 struct mg_connection;  /* Handle for the individual connection */
 
@@ -78,14 +74,14 @@ struct mg_request_info {
 
 	char isSecuredSession;      /* HAP session security */
 	union {
-		uint8_t sharedSecretForSession[SESSION_SECURITY_KEY_LENGTH];
+		uint8_t pairVerifySharedSecret[SESSION_SECURITY_KEY_LENGTH];
 		uint8_t accessoryToControllerKey[SESSION_SECURITY_KEY_LENGTH];
 	};
 	union {
-		uint8_t controllerLongTermPublicKey[SESSION_SECURITY_KEY_LENGTH];
+		uint8_t controllerPublicKey[SESSION_SECURITY_KEY_LENGTH];
 		uint8_t controllerToAccessoryKey[SESSION_SECURITY_KEY_LENGTH];
 	};
-	uint8_t stationToStationXY[STATION_TO_STATION_XY_LENGTH];
+	uint8_t accessoryPublicKey[SESSION_SECURITY_KEY_LENGTH];
 	union {
 		uint64_t incomingFrameCounter;
 		uint8_t  incomingNonce[8];
