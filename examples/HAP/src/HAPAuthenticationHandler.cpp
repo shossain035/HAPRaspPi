@@ -191,19 +191,16 @@ HAPAuthenticationHandler::processSetupRequest(const TLVList& requestTLVList, TLV
 			HAPAuthenticationUtility::generateKeyPairUsingEd25519(
 				accessoryLongTermPublicKey, accessoryLongTermSecretKey);
 						
-			/*
-			byte_string controllerUsername;
-			//controllerUsername.assign(_srpSessionRef->username->data, 
-			//	_srpSessionRef->username->data + _srpSessionRef->username->length);
+			
 			//save pairing
-			HAPPairing pairing(controllerUsername,
-							   controllerDecryptedLongTermPublicKey,
+			HAPPairing pairing(controllerIdentifier->getValue(),
+							   controllerLongTermPublicKey->getValue(),
 							   accessoryLongTermPublicKey,
 							   accessoryLongTermSecretKey);
 			if (!pairing.savePairing()) {
 				return HAP::INTERNAL_ERROR;
 			}
-			*/
+			
 
 
 			//sign accessory info
