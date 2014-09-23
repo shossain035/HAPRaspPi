@@ -26,18 +26,19 @@ HAPAuthenticationUtility::decryptControllerData(
 	}
 	//todo: verify nonce and session key length
 
-	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) nonce);
+	chacha_poly1305_ctx ctx;
+	chacha_poly1305_init(&ctx, sessionKey.data(), (uint8_t *)nonce);
 
 	//extracting the auth tag
 	byte_string authTag(encryptedDataAndTag.end() - CHACHA_POLY1305_DIGEST_SIZE, encryptedDataAndTag.end());
 	int encryptedDataLength = encryptedDataAndTag.size() - CHACHA_POLY1305_DIGEST_SIZE;
 	
 	decryptedData.resize(encryptedDataLength);
-	ctx.decrypt(encryptedDataAndTag.data(), encryptedDataLength, decryptedData.data());
+	chacha_poly1305_decrypt(&ctx, encryptedDataAndTag.data(), encryptedDataLength, decryptedData.data());
 		
 	byte_string authTagComputed;
 	authTagComputed.resize(CHACHA_POLY1305_DIGEST_SIZE);
-	ctx.digest(authTagComputed.data());
+	chacha_poly1305_digest(&ctx, authTagComputed.data());
 
 	if (authTagComputed != authTag) {
 		printf("auth tag mismatch\n");
@@ -54,14 +55,15 @@ HAPAuthenticationUtility::encryptAccessoryData(
 {
 	//todo: verify nonce and session key length
 
-	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) nonce);
+	chacha_poly1305_ctx ctx;
+	chacha_poly1305_init(&ctx, sessionKey.data(), (uint8_t *)nonce);
 	
 	encryptedDataAndTag.resize(plainText.size());
-	ctx.encrypt(plainText.data(), plainText.size(), encryptedDataAndTag.data());
+	chacha_poly1305_encrypt(&ctx, plainText.data(), plainText.size(), encryptedDataAndTag.data());
 
 	byte_string authTag;
 	authTag.resize(CHACHA_POLY1305_DIGEST_SIZE);
-	ctx.digest(authTag.data());
+	chacha_poly1305_digest(&ctx, authTag.data());
 
 	encryptedDataAndTag += authTag;
 	
