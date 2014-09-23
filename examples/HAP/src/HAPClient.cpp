@@ -21,25 +21,11 @@ HAPClient::~HAPClient()
 		return;
 	}
 
-	byte_string authTag;
-	
 	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, 
-		request_info->outgoingNonce, _response, authTag, _response);
+		request_info->outgoingNonce, _response, _response);
 	//todo: consider threading issues
 	request_info->outgoingFrameCounter++;
-	
-	union {
-		//warning: assumed littleendian
-		uint32_t encryptedResponseLength;
-		uint8_t encryptedResponseLengthBytes[4];
-	};
-
-	encryptedResponseLength = _response.size();
-	
-	//<4B: length of encrypted text, n>, <n: encrypted text> <16: authTag>
-	_response.insert(_response.begin(), encryptedResponseLengthBytes, encryptedResponseLengthBytes + 4);
-	_response += authTag;
-
+			
 	mg_write(_conn, _response.data(), _response.size());
 }
 

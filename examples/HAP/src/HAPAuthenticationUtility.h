@@ -52,7 +52,7 @@ public:
 
 	static bool encryptHAPResponse(
 		const uint8_t* encryptionKey, const uint8_t* nonce,
-		const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse);
+		const byte_string& plaintTextResponse, byte_string& encryptedResponse);
 
 	static bool getLongTermKeys(const byte_string& accessoryIdentifier, byte_string& publicKey, byte_string& secretKey);
 

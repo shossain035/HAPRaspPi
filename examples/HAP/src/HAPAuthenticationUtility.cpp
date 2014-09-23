@@ -115,26 +115,31 @@ HAPAuthenticationUtility::signAccessoryInfo(
 bool
 HAPAuthenticationUtility::encryptHAPResponse(
 	const uint8_t* encryptionKey, const uint8_t* nonce,
-	const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse)
+	const byte_string& plaintTextResponse, byte_string& encryptedResponse)
 {
-	
-	/*union {
-		int aadValue;
-		uint8_t aad[4];
+	union {
+		uint16_t aadValue;
+		uint8_t aad[2];
 	};
 	aadValue = plaintTextResponse.size();
 
 	chacha_poly1305_ctx ctx;
 
-	chacha_poly1305_set_key(&ctx, encryptionKey);
-	chacha_poly1305_set_nonce(&ctx, nonce);
-	chacha_poly1305_update(&ctx, 4, aad);
+	chacha_poly1305_init(&ctx, encryptionKey, nonce);
+	chacha_poly1305_update(&ctx, aad, 2);
 
 	encryptedResponse.resize(plaintTextResponse.size());
-	chacha_poly1305_encrypt(&ctx, plaintTextResponse.size(), encryptedResponse.data(), plaintTextResponse.data());
+	chacha_poly1305_encrypt(&ctx, plaintTextResponse.data(), plaintTextResponse.size(), encryptedResponse.data());
+	
+	byte_string authTag;
+	authTag.resize(CHACHA_POLY1305_DIGEST_SIZE);
+	chacha_poly1305_digest(&ctx, authTag.data());
 
-	computeChaChaPolyAuthTag(ctx, authTag);
-	*/
+	//<2B: length of encrypted text, n>, <n: encrypted text> <16: authTag>
+	encryptedResponse.insert(encryptedResponse.begin(), aad, aad + 2);
+	encryptedResponse += authTag;
+
+	
 	return true;
 }
 
