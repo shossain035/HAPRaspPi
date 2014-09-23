@@ -12,13 +12,9 @@ public:
 	}
 
 	HAPPairing(const byte_string& controllerUsername, 
-			   const byte_string& controllerLongTermPublicKey,
-			   const byte_string& accessoryLongTermPublicKey,
-		       const byte_string& accessoryLongTermSecretKey)
+			   const byte_string& controllerLongTermPublicKey)
 		: _controllerUsername(controllerUsername), 
-		  _controllerLongTermPublicKey(controllerLongTermPublicKey),
-		  _accessoryLongTermPublicKey(accessoryLongTermPublicKey),
-		  _accessoryLongTermSecretKey(accessoryLongTermSecretKey)
+		  _controllerLongTermPublicKey(controllerLongTermPublicKey)
 	{
 	}
 
@@ -27,16 +23,12 @@ public:
 	
 	const byte_string& controllerUsername() { return _controllerUsername; }
 	const byte_string& controllerLongTermPublicKey()  { return _controllerLongTermPublicKey; }
-	const byte_string& accessoryLongTermPublicKey() { return _accessoryLongTermPublicKey; }
-	const byte_string& accessoryLongTermSecretKey() { return _accessoryLongTermSecretKey; }
-
+	
+	static const char* _pairingStorePath;
 private:
 	byte_string _controllerUsername;
 	byte_string _controllerLongTermPublicKey;
-	byte_string _accessoryLongTermPublicKey;
-	byte_string _accessoryLongTermSecretKey;
-
-	static const char* _pairingStorePath;
+		
 };
 
 class HAPAuthenticationUtility {
@@ -48,7 +40,7 @@ public:
 		const byte_string& sessionKey,
 		const byte_string& encryptedDataAndTag, byte_string& decryptedData);
 	static bool encryptAccessoryData(
-		const byte_string& sessionKey,
+		const byte_string& sessionKey, const char * nonce,
 		const byte_string& plainText, byte_string& encryptedDataAndTag);
 
 	static bool verifyControllerSignature(const byte_string& srpSharedSecret, const byte_string& controllerIdentifier,
@@ -62,15 +54,17 @@ public:
 		const uint8_t* encryptionKey, const uint8_t* nonce,
 		const byte_string& plaintTextResponse, byte_string& authTag, byte_string& encryptedResponse);
 
-	static bool generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey);
+	static bool getLongTermKeys(const byte_string& accessoryIdentifier, byte_string& publicKey, byte_string& secretKey);
 
 	static bool generateKeyPairUsingCurve25519(byte_string& publicKey, byte_string& secretKey);
 	static bool generateSharedSecretUsingCurve25519(
 		const byte_string& controllerPublicKey,
 		const byte_string& accessorySecretKey,
-		byte_string& sharedSecret);
+		byte_string& sharedSecret,
+		byte_string& sessionKey);
 
-	static bool generateAccessoryProofForSTSProtocol(
+
+	/*static bool generateAccessoryProofForSTSProtocol(
 		const byte_string& stationToStationYX, 
 		const byte_string& accessoryLongTermPublicKey,
 		const byte_string& accessoryLongTermSecretKey, 		
@@ -82,7 +76,7 @@ public:
 		const byte_string& controllerLongTermPublicKey,
 		const byte_string& sharedSecret,
 		const byte_string& controllerProof);
-
+*/
 
 	static bool generateSessionKeys(const byte_string& sharedSecretForSession,
 		byte_string& accessoryToControllerKey, byte_string& controllerToAccessoryKey);

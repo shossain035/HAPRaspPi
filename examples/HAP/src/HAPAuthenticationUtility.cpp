@@ -50,11 +50,12 @@ HAPAuthenticationUtility::decryptControllerData(
 bool
 HAPAuthenticationUtility::encryptAccessoryData(
 	const byte_string& sessionKey,
+	const char * nonce,
 	const byte_string& plainText, byte_string& encryptedDataAndTag)
 {
 	//todo: verify nonce and session key length
 
-	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) "PS-Msg06");
+	ChaChaPoly ctx(sessionKey.data(), (uint8_t *) nonce);
 	
 	encryptedDataAndTag.resize(plainText.size());
 	ctx.encrypt(plainText.data(), plainText.size(), encryptedDataAndTag.data());
@@ -158,15 +159,18 @@ bool
 HAPAuthenticationUtility::generateSharedSecretUsingCurve25519(
 		const byte_string& controllerPublicKey,
 		const byte_string& accessorySecretKey,
-		byte_string& sharedSecret)
+		byte_string& sharedSecret,
+		byte_string& sessionKey)
 {
 	sharedSecret.resize(CURVE25519_KEY_SIZE);
 	curve25519_donna(sharedSecret.data(), accessorySecretKey.data(), controllerPublicKey.data());
+	
+	deriveKeyUsingHKDF(sharedSecret, "Pair-Verify-Encrypt-Salt", "Pair-Verify-Encrypt-Info", sessionKey);
 
 	return true;
 }
 
-
+/*
 bool 
 HAPAuthenticationUtility::generateAccessoryProofForSTSProtocol(
 		const byte_string& stationToStationYX,
@@ -200,7 +204,7 @@ HAPAuthenticationUtility::verifyControllerProofForSTSProtocol(
 	return ed25519_sign_open(stationToStationXY.data(), stationToStationXY.size(), 
 			controllerLongTermPublicKey.data(), decryptedControllerProof.data()) == 0;
 }
-
+*/
 
 bool 
 HAPAuthenticationUtility::generateSessionKeys(const byte_string& sharedSecretForSession,
@@ -211,12 +215,33 @@ HAPAuthenticationUtility::generateSessionKeys(const byte_string& sharedSecretFor
 }
 
 bool 
-HAPAuthenticationUtility::generateKeyPairUsingEd25519(byte_string& publicKey, byte_string& secretKey)
+HAPAuthenticationUtility::getLongTermKeys(const byte_string& accessoryIdentifier, byte_string& publicKey, byte_string& secretKey)
 {
-	generateRandomBytes(secretKey, sizeof(ed25519_secret_key));
-	
+	if (accessoryIdentifier.size() <= 0) return false;
+
+	std::string path(HAPPairing::_pairingStorePath);
+	path.append((char *)accessoryIdentifier.data(), accessoryIdentifier.size());
+
+	std::ifstream keyFile(path, std::ios::in | std::ofstream::binary);
+
+	if (keyFile.good()) {
+		readFromFile(keyFile, publicKey);
+		readFromFile(keyFile, secretKey);
+
+		return true;
+	}
+
+	printf("generating new long term key pairs\n");
+
+	generateRandomBytes(secretKey, sizeof(ed25519_secret_key));	
 	publicKey.resize(sizeof(ed25519_public_key));
 	ed25519_publickey(secretKey.data(), publicKey.data());
+
+	std::ofstream outputKeyFile(path, std::ios::out | std::ofstream::binary);
+
+	writeToFile(outputKeyFile, publicKey);
+	writeToFile(outputKeyFile, secretKey);
+	
 	return true;
 }
 
@@ -319,9 +344,7 @@ HAPPairing::savePairing()
 	
 	writeToFile(keyFile, _controllerUsername);
 	writeToFile(keyFile, _controllerLongTermPublicKey);
-	writeToFile(keyFile, _accessoryLongTermPublicKey);
-	writeToFile(keyFile, _accessoryLongTermSecretKey);
-
+	
 	return true;
 }
 
@@ -342,8 +365,6 @@ HAPPairing::retievePairing()
 	
 	readFromFile(keyFile, _controllerUsername);
 	readFromFile(keyFile, _controllerLongTermPublicKey);
-	readFromFile(keyFile, _accessoryLongTermPublicKey);
-	readFromFile(keyFile, _accessoryLongTermSecretKey);
-
+	
 	return true;
 }
