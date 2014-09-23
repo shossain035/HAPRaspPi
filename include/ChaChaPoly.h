@@ -19,6 +19,7 @@ typedef struct chacha_poly1305_ctx{
 }chacha_poly1305_ctx;
 
 void chacha_poly1305_init(chacha_poly1305_ctx * ctx, const uint8_t key[CHACHA_KEY_SIZE], const uint8_t nonce[CHACHA_NONCE_SIZE]);
+void chacha_poly1305_update(chacha_poly1305_ctx * ctx, const uint8_t *aad, size_t aadLength);
 void chacha_poly1305_encrypt(chacha_poly1305_ctx * ctx, const uint8_t * source, uint64_t length, uint8_t * destination);
 void chacha_poly1305_decrypt(chacha_poly1305_ctx * ctx, const uint8_t * source, uint64_t length, uint8_t * destination);
 void chacha_poly1305_digest(chacha_poly1305_ctx * ctx, uint8_t authTag[CHACHA_POLY1305_DIGEST_SIZE]);

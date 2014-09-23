@@ -88,7 +88,7 @@
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <nettle/chacha-poly1305.h>
+#include <ChaChaPoly.h>
 
 #ifndef MAX_WORKER_THREADS
 #define MAX_WORKER_THREADS 1024
@@ -3976,23 +3976,23 @@ static int decrypt_request(struct mg_connection *conn, char *buf, int bufsiz, co
 	
 	union {
 		uint32_t aadValue;
-		uint8_t aad[4];
+		uint8_t aad[2];
 	}u;
 	u.aadValue = bufsiz;
 
 	struct chacha_poly1305_ctx ctx;
-	chacha_poly1305_set_key(&ctx, conn->request_info.controllerToAccessoryKey);
-	chacha_poly1305_set_nonce(&ctx, conn->request_info.incomingNonce);
-
+	chacha_poly1305_init(&ctx, conn->request_info.controllerToAccessoryKey, conn->request_info.incomingNonce);
+	
 	//todo: consider threading issues
 	conn->request_info.incomingFrameCounter++;
-
-	chacha_poly1305_update(&ctx, 4, u.aad);
-	chacha_poly1305_decrypt(&ctx, bufsiz, (uint8_t *) buf, (uint8_t *) buf);
-	chacha_poly1305_digest(&ctx, CHACHA_POLY1305_DIGEST_SIZE, authTagComputed);
 	
-	//printString(authTag, 16, "authTag");
-	//printString(authTagComputed, 16, "authTagComputed");
+	chacha_poly1305_update(&ctx, u.aad, 2);
+	chacha_poly1305_decrypt(&ctx, (uint8_t *)buf, bufsiz, (uint8_t *)buf);
+	
+	chacha_poly1305_digest(&ctx, authTagComputed);
+	
+	//printString((const uint8_t *)authTag, 16, "authTag");
+	//printString(authTagComputed, 16, "authTagComputed");	
 	
 	return (0 == memcmp(authTagComputed, authTag, CHACHA_POLY1305_DIGEST_SIZE));
 }
@@ -4009,13 +4009,12 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 		*nread < bufsiz && request_len == 0) {
 		startOfblockIndex = *nread;
 
-		if (4 != pull_all(fp, conn, auxilaryBuffer, 4)) {
+		if (2 != pull_all(fp, conn, auxilaryBuffer, 2)) {
 			return -1;
 		}
 		
-		blockSize = auxilaryBuffer[0] + 16 * auxilaryBuffer[1] 
-			+ 256 * auxilaryBuffer[2] + 4096 * auxilaryBuffer[3];
-		//DEBUG_TRACE("blockSize: %d", blockSize);
+		blockSize = auxilaryBuffer[0] + 256 * auxilaryBuffer[1];
+		DEBUG_TRACE("blockSize: %d", blockSize);
 
 		*nread += blockSize;
 		assert(*nread <= bufsiz); //caution: bufsiz of 16384 bytes may not be enough
@@ -4028,6 +4027,7 @@ static int read_secured_request(FILE *fp, struct mg_connection *conn,
 		}
 
 		if (!decrypt_request(conn, buf + startOfblockIndex, blockSize, auxilaryBuffer)) {
+			DEBUG_TRACE("%s", "auth tags did not match");
 			return -1;
 		}
 		
@@ -4048,7 +4048,7 @@ static int read_request(FILE *fp, struct mg_connection *conn,
                         char *buf, int bufsiz, int *nread)
 {
     if (conn->request_info.isSecuredSession) {
-		DEBUG_TRACE("%s", "secured request");
+		DEBUG_TRACE("%s", "secured request.");
 		
 		return read_secured_request(fp, conn, buf, bufsiz, nread);
 	}
@@ -4056,7 +4056,7 @@ static int read_request(FILE *fp, struct mg_connection *conn,
 	int request_len, n = 0;
 	request_len = get_request_len(buf, *nread);
 
-	DEBUG_TRACE("%s", "unsecured request");
+	DEBUG_TRACE("%s", "unsecured request.");
 
 	while (conn->ctx->stop_flag == 0 &&
            *nread < bufsiz && request_len == 0 &&
