@@ -4,15 +4,25 @@
 
 HAPServer::HAPServer()
 {
+	//service and characteristic iids myst be unique
+
+	std::vector<CharacteristicPermession> readPermession;
+	readPermession.push_back(CharacteristicPermession::PAIRED_READ);
+	std::vector<CharacteristicPermession> writePermession;
+	writePermession.push_back(CharacteristicPermession::PAIRED_WRITE);
+	std::vector<CharacteristicPermession> readWritePermession;
+	readWritePermession.push_back(CharacteristicPermession::PAIRED_READ);
+	readWritePermession.push_back(CharacteristicPermession::PAIRED_WRITE);
+
 	HAPCharacteristic ** informationCharacteristics = new HAPCharacteristic*[5];
-	informationCharacteristics[0] = new HAPCharacteristic(1, HAPCharacteristicTypes::name, "Arduino Light");
-	informationCharacteristics[1] = new HAPCharacteristic(2, HAPCharacteristicTypes::manufacturer, "Lithouse");
-	informationCharacteristics[2] = new HAPCharacteristic(3, HAPCharacteristicTypes::model, "Light 11");
-	informationCharacteristics[3] = new HAPCharacteristic(4, HAPCharacteristicTypes::serialNumber, "1CWE5F2");
-	informationCharacteristics[4] = new HAPCharacteristic(5, HAPCharacteristicTypes::identify, 0);
+	informationCharacteristics[0] = new HAPCharacteristic(100, HAPCharacteristicTypes::name, "Arduino Light", readPermession);
+	informationCharacteristics[1] = new HAPCharacteristic(101, HAPCharacteristicTypes::manufacturer, "Litehouse", readPermession);
+	informationCharacteristics[2] = new HAPCharacteristic(102, HAPCharacteristicTypes::model, "Light 11", readPermession);
+	informationCharacteristics[3] = new HAPCharacteristic(103, HAPCharacteristicTypes::serialNumber, "1CWE5F2", readPermession);
+	informationCharacteristics[4] = new HAPCharacteristic(104, HAPCharacteristicTypes::identify, 0, writePermession);
 
 	HAPCharacteristic ** lightBulbCharacteristics = new HAPCharacteristic*[1];
-	lightBulbCharacteristics[0] = new HAPCharacteristic(1, HAPCharacteristicTypes::powerState, 0);
+	lightBulbCharacteristics[0] = new HAPCharacteristic(200, HAPCharacteristicTypes::powerState, 0, readWritePermession);
 
 	HAPService ** services = new HAPService*[2];
 	services[0] = new HAPService(1, HAPServiceTypes::accessoryInformation, informationCharacteristics, 5);
@@ -25,8 +35,8 @@ HAPServer::HAPServer()
 
 void HAPServer::getAccessories(HAPClient & client)
 {
-	//todo calculate length programetically
-	client.sendHeader(HAP::SUCCESS, 926);
+	//todo: calculate length programetically
+	client.sendHeader(HAP::SUCCESS, 467);
 	client.print("{\"accessories\":[");
 
 	for (unsigned char i = 0; i < _accessoryCount; i++) {

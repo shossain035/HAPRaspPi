@@ -21,6 +21,10 @@ HAPClient::~HAPClient()
 		return;
 	}
 
+	for (int i = 0; i < _response.size(); i++) {
+		printf("%c", _response.data() [i]);
+	}
+
 	HAPAuthenticationUtility::encryptHAPResponse(request_info->accessoryToControllerKey, 
 		request_info->outgoingNonce, _response, _response);
 	//todo: consider threading issues

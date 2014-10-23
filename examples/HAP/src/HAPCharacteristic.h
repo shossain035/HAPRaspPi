@@ -10,6 +10,11 @@ union HAPCharacteristicValue
 	const char * s;
 };
 
+enum CharacteristicPermession
+{ 
+	PAIRED_READ, PAIRED_WRITE, EVENTS
+};
+
 class HAPCharacteristicTypes
 {
 public:
@@ -25,8 +30,8 @@ public:
 class HAPCharacteristic : public HAPBase 
 {
 public:
-	HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value);
-	HAPCharacteristic(unsigned char instanceId, const char * const type, int value);
+	HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value, std::vector<CharacteristicPermession>& permissions);
+	HAPCharacteristic(unsigned char instanceId, const char * const type, int value, std::vector<CharacteristicPermession>& permissions);
 
 	virtual int sendToClient(HAPClient& client);
 	void updateValueWithJSON(HAPClient& client, const char* string);
@@ -35,6 +40,7 @@ public:
 private:
 	const char * const _type;
 	HAPCharacteristicValue * const _value;
+	const std::vector<CharacteristicPermession> _permessions;
 };
 
 #endif

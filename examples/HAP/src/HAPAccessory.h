@@ -12,6 +12,9 @@ public:
 	~HAPAccessory();
 
 	HAPService* serviceForId(int serviceId);
+
+protected:	
+	virtual void printInstanceId(HAPClient & client);
 private:
 	HAPService ** const _services;
 	unsigned char _servicesCount;

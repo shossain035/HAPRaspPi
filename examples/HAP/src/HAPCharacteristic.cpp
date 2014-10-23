@@ -3,22 +3,24 @@
 #include <stdio.h>
 
 
-const char * HAPCharacteristicTypes::name = "name";
-const char * HAPCharacteristicTypes::manufacturer = "manufacturer";
-const char * HAPCharacteristicTypes::model = "model";
-const char * HAPCharacteristicTypes::serialNumber = "serial-number";
-const char * HAPCharacteristicTypes::identify = "identify";
-const char * HAPCharacteristicTypes::powerState = "on";
+const char * HAPCharacteristicTypes::name = "23";
+const char * HAPCharacteristicTypes::manufacturer = "20";
+const char * HAPCharacteristicTypes::model = "21";
+const char * HAPCharacteristicTypes::serialNumber = "30";
+const char * HAPCharacteristicTypes::identify = "14";
+const char * HAPCharacteristicTypes::powerState = "25";
 
 
-HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value)
-	:HAPBase(instanceId), _type(type), _value(new HAPCharacteristicValue)
+HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * const type, const char * value, 
+	std::vector<CharacteristicPermession>& permissions)
+	:HAPBase(instanceId), _type(type), _value(new HAPCharacteristicValue), _permessions(permissions)
 {
 	_value->s = value;
 }
 
-HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * const type, int value)
-	:HAPBase(instanceId), _type(type), _value(new HAPCharacteristicValue)
+HAPCharacteristic::HAPCharacteristic(unsigned char instanceId, const char * const type, int value, 
+	std::vector<CharacteristicPermession>& permissions)
+	: HAPBase(instanceId), _type(type), _value(new HAPCharacteristicValue), _permessions(permissions)
 {
 	_value->i = value;
 }
@@ -28,10 +30,36 @@ int HAPCharacteristic::sendToClient(HAPClient & client)
 	//todo: properties and meta data
 	printInstanceId(client);
 
-	client.print(",\"type\":\"public.hap.characteristic.");
+	client.print(",\"type\":\"");
 	client.print(_type);
-
-	client.print("\",\"properties\":[\"secureRead\",\"secureWrite\"],\"value\":");
+	
+	//todo: move into a separate function
+	client.print("\",\"perms\":[");
+	for (int i = 0; i < _permessions.size()-1; i++) {
+		switch (_permessions[i])
+		{
+		case CharacteristicPermession::PAIRED_READ:
+			client.print("\"pr\",");
+			break;
+		case CharacteristicPermession::PAIRED_WRITE:
+			client.print("\"pw\",");
+			break;		
+		} 		
+	}
+	
+	if (_permessions.size() > 0) {
+		switch (_permessions[_permessions.size()-1])
+		{
+		case CharacteristicPermession::PAIRED_READ:
+			client.print("\"pr\"");
+			break;
+		case CharacteristicPermession::PAIRED_WRITE:
+			client.print("\"pw\"");
+			break;
+		}
+	}
+	
+	client.print("],\"value\":");
 
 	if (_type == HAPCharacteristicTypes::powerState) {
 		client.print(_value->i);

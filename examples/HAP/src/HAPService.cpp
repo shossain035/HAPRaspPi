@@ -2,8 +2,8 @@
 #include <stdio.h>
 
 
-const char * HAPServiceTypes::accessoryInformation = "accessory-information";
-const char * HAPServiceTypes::light = "lightbulb";
+const char * HAPServiceTypes::accessoryInformation = "3E";
+const char * HAPServiceTypes::light = "43";
 
 HAPService::HAPService(unsigned char instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount)
 	:HAPBase(instanceId),
@@ -17,7 +17,7 @@ int HAPService::sendToClient(HAPClient & client)
 {
 	printInstanceId(client);
 
-	client.print(",\"type\":\"public.hap.service.");
+	client.print(",\"type\":\"");
 	client.print(_type);
 	client.print("\",\"characteristics\":[");
 

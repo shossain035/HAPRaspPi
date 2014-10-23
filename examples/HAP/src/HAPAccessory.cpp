@@ -42,3 +42,10 @@ HAPAccessory::~HAPAccessory()
 
 	delete[] _services;
 }
+
+void HAPAccessory::printInstanceId(HAPClient & client)
+{
+	client.print("{\"aid\":");
+	client.print((int)_instanceId);
+}
+

@@ -7,6 +7,6 @@ HAPBase::HAPBase(unsigned char instanceId)
 
 void HAPBase::printInstanceId(HAPClient & client)
 {
-	client.print("{\"instanceID\":");
+	client.print("{\"iid\":");
 	client.print((int)_instanceId);
 }

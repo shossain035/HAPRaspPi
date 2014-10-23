@@ -17,6 +17,6 @@ public:
 	}
 protected: 
 	unsigned char _instanceId;
-	void printInstanceId(HAPClient & client);
+	virtual void printInstanceId(HAPClient & client);
 };
 #endif
