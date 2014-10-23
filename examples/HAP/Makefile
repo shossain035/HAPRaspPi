@@ -3,8 +3,9 @@
 #
 
 PROG = HAP
+C_FILES   := $(wildcard src/*.c) 
 CPP_FILES := $(wildcard src/*.cpp)
-OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
+OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o) $(C_FILES:.c=.o)))
 
 TOP = ../..
 CIVETWEB_LIB = libcivetweb.a
@@ -21,21 +22,24 @@ endif
 
 all: $(PROG)
 
-#$(PROG): lib/$(CIVETWEB_LIB) $(OBJ_FILES)
-#	$(CXX) $(LDFLAGS) -o $@ $^ lib/$(CIVETWEB_LIB) $(LIBS)
-
-$(PROG): $(OBJ_FILES)
+$(PROG): lib/$(CIVETWEB_LIB) $(OBJ_FILES)
 	$(CXX) $(LDFLAGS) -o $@ $^ lib/$(CIVETWEB_LIB) $(LIBS)
 
-#lib/$(CIVETWEB_LIB):
-#	$(MAKE) -C $(TOP) clean lib WITH_CPP=1
-#	cp $(TOP)/$(CIVETWEB_LIB) lib/
+#$(PROG): $(OBJ_FILES)
+#	$(CXX) $(LDFLAGS) -o $@ $^ lib/$(CIVETWEB_LIB) $(LIBS)
+
+lib/$(CIVETWEB_LIB):
+	$(MAKE) -C $(TOP) clean lib WITH_CPP=1
+	cp $(TOP)/$(CIVETWEB_LIB) lib/
 
 obj/%.o: src/%.cpp
 	$(CXX) $(CFLAGS) -c -o $@ $<
 
+obj/%.o: src/%.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
 clean:
-#	rm -f lib/$(CIVETWEB_LIB) $(PROG)
-	rm -f $(PROG) $(OBJ_FILES)
+	rm -f lib/$(CIVETWEB_LIB) $(PROG)
+#	rm -f $(PROG) $(OBJ_FILES)
 
 .PHONY: all clean
