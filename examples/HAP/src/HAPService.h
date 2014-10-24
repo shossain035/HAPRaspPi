@@ -14,7 +14,7 @@ public:
 class HAPService : public HAPBase
 {
 public:
-	HAPService(unsigned char instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount);
+	HAPService(unsigned int instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount);
 	virtual int sendToClient(HAPClient & client);
 	~HAPService();
 

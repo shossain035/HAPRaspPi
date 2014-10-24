@@ -17,7 +17,7 @@
 
 #define PORT "8081"
 #define ACCESSORIES_URI "/accessories$"
-#define CHARACTERISTIC_URI "/accessories/**/services/**/characteristics/**$"
+#define CHARACTERISTIC_URI "/characteristics"
 #define PAIR_SETUP_URI "/pair-setup$"
 #define PAIR_VERIFY_URI "/pair-verify$"
 
@@ -76,9 +76,9 @@ public:
 class CharacteristicHandler : public BaseHandler
 {
 private:
-	bool parseUri(struct mg_connection* conn, 
-					int& accessoryId, int& serviceId, int& characteristicId) {
-		
+	bool parseBody(struct mg_connection* conn, 
+					int& accessoryId, int& characteristicId) {
+		/*
 		struct mg_request_info *ri = mg_get_request_info(conn);
 		assert(ri != NULL);
 		
@@ -89,7 +89,11 @@ private:
 			client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 			return false;
 		}
+		*/
 
+		//todo: parse body
+		accessoryId = 1;
+		characteristicId = 200;
 		return true;
 	}
 public:
@@ -97,25 +101,25 @@ public:
 
 	bool handleGet(CivetServer* server, struct mg_connection* conn) {
 		printf("GET characteristic\n");
-		int accessoryId, serviceId, characteristicId;
-		if (!parseUri(conn, accessoryId, serviceId, characteristicId)) {
+		int accessoryId, characteristicId;
+		if (!parseBody(conn, accessoryId, characteristicId)) {
 			return true;
 		}
 
 		HAPClient client(conn);
-		_hapServer.getCharacteristic(client, accessoryId, serviceId, characteristicId);
+		_hapServer.getCharacteristic(client, accessoryId, characteristicId);
 		
 		return true;
 	}
 	bool handlePut(CivetServer* server, struct mg_connection* conn) {
 		printf("PUT characteristic\n");
-		int accessoryId, serviceId, characteristicId;
-		if (!parseUri(conn, accessoryId, serviceId, characteristicId)) {
+		int accessoryId, characteristicId;
+		if (!parseBody(conn, accessoryId, characteristicId)) {
 			return true;
 		}
 			
 		HAPClient client(conn);
-		_hapServer.updateCharacteristic(client, accessoryId, serviceId, characteristicId);
+		_hapServer.updateCharacteristic(client, accessoryId, characteristicId);
 
 		return true;
 	}

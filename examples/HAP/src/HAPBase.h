@@ -5,7 +5,7 @@
 
 class HAPBase {
 public:
-	HAPBase(unsigned char instanceId);
+	HAPBase(unsigned int instanceId);
 	virtual int sendToClient(HAPClient& client) = 0;
 	virtual ~HAPBase() {}
 
@@ -16,7 +16,7 @@ public:
 		return (value >= low  && value <= high);
 	}
 protected: 
-	unsigned char _instanceId;
+	unsigned int _instanceId;
 	virtual void printInstanceId(HAPClient & client);
 };
 #endif

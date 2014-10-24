@@ -84,6 +84,9 @@ void HAPClient::sendHeader(HAP::HAPStatus status, size_t contentLength,
 		case HAP::SUCCESS:
 			println("200 OK");
 			break;
+		case HAP::SUCCESS_NO_CONTENT:
+			println("204 No Content");
+			break;
 		case HAP::BAD_REQUEST:
 			println("400 Bad request");
 			break;

@@ -1,6 +1,6 @@
 #include "HAPBase.h"
 
-HAPBase::HAPBase(unsigned char instanceId)
+HAPBase::HAPBase(unsigned int instanceId)
 {
 	_instanceId = instanceId;
 }

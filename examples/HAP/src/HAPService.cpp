@@ -5,7 +5,7 @@
 const char * HAPServiceTypes::accessoryInformation = "3E";
 const char * HAPServiceTypes::light = "43";
 
-HAPService::HAPService(unsigned char instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount)
+HAPService::HAPService(unsigned int instanceId, const char * const type, HAPCharacteristic ** const characteristics, unsigned char characteristicsCount)
 	:HAPBase(instanceId),
 	_type(type), 
 	_characteristics(characteristics),
@@ -35,12 +35,16 @@ int HAPService::sendToClient(HAPClient & client)
 
 HAPCharacteristic* HAPService::characteristicForId(int characteristicId)
 {
-	if (!HAPBase::withinInclusiveRange(characteristicId, 1, (int)_characteristicsCount)) {
+	//todo: hard coded mapping #100
+	int characteristicIndex = characteristicId - _instanceId * 100;
+	
+	if (!HAPBase::withinInclusiveRange(characteristicIndex, 0, (int)_characteristicsCount - 1)) {
 		return NULL;
 	}
 
-	return _characteristics[characteristicId - 1];
+	return _characteristics[characteristicIndex];
 }
+
 
 HAPService::~HAPService()
 {

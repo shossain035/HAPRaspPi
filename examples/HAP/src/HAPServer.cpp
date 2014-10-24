@@ -50,33 +50,31 @@ void HAPServer::getAccessories(HAPClient & client)
 }
 
 HAPCharacteristic* HAPServer::getCharacteristic(
-	int accessoryId, int serviceId, int characteristicId)
+	int accessoryId, int characteristicId)
 {
 	if (!HAPBase::withinInclusiveRange(accessoryId, 1, _accessoryCount)) {
 		return NULL;
 	}
 
 	HAPAccessory* accessory = _accessories[accessoryId - 1];
+	//todo: hard coded mapping #100
+	int serviceId = characteristicId / 100;
 	HAPService* service = accessory->serviceForId(serviceId);
 
 	if (NULL == service) {
+		printf("no service found found\n");
+
 		return NULL;
 	}
 
-	HAPCharacteristic* characteristic = service->characteristicForId(characteristicId);
-
-	if (NULL == characteristic) {
-		return NULL;
-	}
-	
-	return characteristic;
+	return service->characteristicForId(characteristicId);
 }
 
 void HAPServer::getCharacteristic(HAPClient& client,
-	int accessoryId, int serviceId, int characteristicId)
+	int accessoryId, int characteristicId)
 {
 	HAPCharacteristic* characteristic 
-		= getCharacteristic(accessoryId, serviceId, characteristicId);
+		= getCharacteristic(accessoryId, characteristicId);
 
 	if (characteristic == NULL) {
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
@@ -88,12 +86,13 @@ void HAPServer::getCharacteristic(HAPClient& client,
 }
 
 void HAPServer::updateCharacteristic(HAPClient& client,
-	int accessoryId, int serviceId, int characteristicId)
+	int accessoryId, int characteristicId)
 {
 	HAPCharacteristic* characteristic
-		= getCharacteristic(accessoryId, serviceId, characteristicId);
+		= getCharacteristic(accessoryId, characteristicId);
 
 	if (characteristic == NULL) {
+		printf("no characteristic found\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}

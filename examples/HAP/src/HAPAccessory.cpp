@@ -1,7 +1,7 @@
 #include "HAPAccessory.h"
 #include <stdio.h>
 
-HAPAccessory::HAPAccessory(unsigned char instanceId, HAPService ** const services, unsigned char servicesCount)
+HAPAccessory::HAPAccessory(unsigned int instanceId, HAPService ** const services, unsigned char servicesCount)
 	:HAPBase(instanceId), _services(services), _servicesCount(servicesCount)
 {
 }

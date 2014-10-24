@@ -93,21 +93,22 @@ void HAPCharacteristic::updateValueWithJSON(HAPClient& client, const char* strin
 		return;
 	}
 
-	const char* valueStringBegin = strchr(string, ':');
-	if (valueTagString == NULL) {
+	const char* valueStringBegin = strchr(valueTagString, ':');
+	if (valueStringBegin == NULL) {
 		printf("malformed json\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}
-
+	
 	if (1 != sscanf(valueStringBegin, ":%d", &_value->i)) {
+		printf("not the expected integer\n");
 		client.sendHeaderWithoutBody(HAP::BAD_REQUEST);
 		return;
 	}
 
 	printf("characteristic updated to :%d\n", _value->i);
-	client.sendHeader(HAP::SUCCESS, 106);
-	sendToClient(client);
+
+	client.sendHeaderWithoutBody(HAP::SUCCESS_NO_CONTENT);
 }
 
 HAPCharacteristic::~HAPCharacteristic()

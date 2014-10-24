@@ -12,9 +12,9 @@ public:
 	//todo: consider threading issues for all the get and put
 	void getAccessories(HAPClient& client);
 	void getCharacteristic(HAPClient& client, 
-		int accessoryId, int serviceId, int characteristicId);
+		int accessoryId, int characteristicId);
 	void updateCharacteristic(HAPClient& client, 
-		int accessoryId, int serviceId, int characteristicId);
+		int accessoryId, int characteristicId);
 
 	void setupPair(HAPClient& client);
 	void verifyPair(HAPClient& client);
@@ -22,7 +22,7 @@ public:
 	~HAPServer();
 private:
 	HAPCharacteristic* getCharacteristic(
-		int accessoryId, int serviceId, int characteristicId);
+		int accessoryId, int characteristicId);
 
 	HAPAccessory** _accessories;
 	int _accessoryCount;
